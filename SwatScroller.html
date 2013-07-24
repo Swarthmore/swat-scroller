@@ -1,0 +1,474 @@
+<html>
+<body>
+<canvas id='canvas' width='1024' height='768'></canvas>
+
+<script type='text/javascript'>
+
+var SCREEN_WIDTH = 1024;
+var SCREEN_HEIGHT = 768;
+
+
+var PLAYER_WIDTH = 50;
+var PLAYER_HEIGHT = 100;
+
+
+var DESK_WIDTH = 100;
+var DESK_HEIGHT = 100;
+
+
+var pressed = {};
+var sprite = new Image();
+sprite.src = "kitty.png";
+var dir = 1;			// Player direction
+var playerAnim = {};	// Player animation setting
+
+var tick = 0;
+var camera = 0; 				// declare the camera
+
+var ground = 0.8*SCREEN_HEIGHT;
+
+var player = new Box(0,ground,PLAYER_WIDTH,PLAYER_HEIGHT);
+var player_desk = new Box(300,ground,DESK_WIDTH,DESK_HEIGHT);
+
+var effects = [];
+playerAnim
+var ctx = document.getElementById('canvas').getContext('2d');
+
+
+//at the top
+var skyline1 = [];
+for(var i=0; i<100; i++) {
+    skyline1[i] = rand(50,200);
+}
+var skyline2 = [];
+for(var i=0; i<200; i++) {
+    skyline2[i] = rand(50,200);
+}
+var skyline3 = [];
+for(var i=0; i<300; i++) {
+    skyline3[i] = rand(50,300);
+}
+
+function setup() {
+
+	player.dy = 0;
+
+	// Set up idle animation
+	playerAnim.idle = [];
+    for(var i=0; i<4; i++) {
+        playerAnim.idle.push({x:i*64, y:0});
+    }
+
+	playerAnim.walking = [];
+    for(var i=0; i<8; i++) {
+        playerAnim.walking.push({x:i*64, y:64});
+    }
+    playerAnim.jumping = [];
+    for(var i=0; i<8; i++) {
+        playerAnim.jumping.push({x:i*64, y:128});
+    }
+
+
+	playerAnim.index = 0;
+    playerAnim.name = "idle";
+
+    document.addEventListener('keydown',function(e) { 
+        pressed[e.keyCode] = true;   
+    });
+    document.addEventListener('keyup',  function(e) {  
+        pressed[e.keyCode] = false;  
+    });
+}
+
+function gameLoop() {
+    processInput();
+    updateGameState();
+    checkConditions();
+    processAnimations();
+    draw();
+    window.requestAnimFrame(gameLoop);
+}
+
+
+
+
+function processInput() {
+}
+
+
+function updateGameState() {
+
+	playerAnim.name = "idle";
+	playerAnim.dir = 1
+	
+    if(pressed['A'.charCodeAt(0)] == true) {
+        player.x -= 4;
+        playerAnim.name = "walking";
+        playerAnim.dir = -1;
+        //console.log("Pressed left");
+    }
+    if(pressed['S'.charCodeAt(0)] == true) {
+        player.x += 4;
+        playerAnim.name = "walking";
+    }
+    
+    if(pressed[' '.charCodeAt(0)] == true) {
+        if( !jumping && player.getBottom() >= ground) {
+            player.dy -= 25  ;
+            jumping = true;
+        }
+    } else {
+        jumping = false;
+    }    
+    
+    if(player.getBottom() < ground) {
+        playerAnim.name = "jumping";
+    }   
+    
+    player.y += player.dy;
+    player.dy += 1;
+ 
+    camera = player.x - 200; // update the camera
+    
+    
+}
+
+function checkConditions() {
+    if(player.intersects(player_desk)) {
+        console.log("player hit the player_desk.");
+        
+        var effect = new ParticleEffect();
+        effect.x = player.x;
+        effect.y = 400-player.h/2;
+        effect.max = 100;
+        effect.initParticle = function(part) {
+            part.dy = rand(-5,5);
+            part.dx = rand(-3,0);
+            part.color = randColor();
+            return part;
+        };
+        effects.push(effect);
+        player.x = 0;
+    }
+    
+    
+    // Clean up old effects
+	for (var i=0; i < effects.length; i++)
+	{
+        if (effects[i].age > effects[i].maxage) {
+        	effects.splice(i, 1);	
+        }
+    }
+    
+    // Check to see if player hits the ground
+    if(player.getBottom() > ground) {
+    	player.dy = 0;
+    	player.setBottom(ground);
+	}
+    
+    
+    
+}
+
+function processAnimations() {
+ 
+
+
+    tick++;
+    if(tick % 6 == 0) {
+        playerAnim.index++;
+    }
+    if(playerAnim.index >= playerAnim[playerAnim.name].length) {
+        playerAnim.index = 0;
+    }
+}
+
+function draw() {
+    drawBackground(ctx);
+    drawSkyline(ctx);
+    drawGround(ctx);
+    ctx.save();
+    ctx.translate(-camera,0);
+    drawPlayer(ctx);
+    drawplayer_desks(ctx);
+    drawEffects(ctx);
+    ctx.restore();
+}
+function drawBackground(ctx) {
+    ctx.fillStyle = "#202020";
+    ctx.fillRect(0,0,800,600);
+}
+function drawGround(ctx) {
+    ctx.fillStyle = "#88ff00";
+    ctx.fillRect(0,400,800,200);
+}
+
+//new function to draw the skyline
+function drawSkyline(ctx) {
+
+
+    ctx.save();
+    ctx.translate(-camera/8, 0);
+    ctx.fillStyle = "#222244";
+    for(var i in skyline3) {
+        var h = skyline3[i];
+        ctx.fillRect(i*50/3, ground - h, 51/3, h);
+    }
+    
+    ctx.restore();   
+
+
+    ctx.save();
+    ctx.translate(-camera/4, 0);
+    ctx.fillStyle = "#224422";
+    for(var i in skyline2) {
+        var h = skyline2[i];
+        ctx.fillRect(i*25, ground - h, 26, h);
+    }
+    
+    ctx.restore();   
+
+
+
+
+    ctx.save();
+    ctx.translate(-camera/2, 0);
+    ctx.fillStyle = "#442222";
+    for(var i in skyline1) {
+        var h = skyline1[i];
+        ctx.fillRect(i*50, ground - h, 51, h);
+    }
+    
+    ctx.restore();
+    
+ 
+}
+
+
+
+function drawPlayer(ctx) {
+    
+    ctx.save();
+	ctx.translate(player.x,player.y);
+    var slice = playerAnim[playerAnim.name][playerAnim.index];
+    ctx.imageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.scale(playerAnim.dir, 1);
+	ctx.drawImage(sprite,
+	    slice.x,slice.y,64,64, //src
+	    -64-32,-64-32-20,128*2,128*2 //dst
+	    );
+   
+	ctx.restore();
+    
+}
+function drawplayer_desks(ctx) {
+    ctx.fillStyle = "#FFFFFF";
+    player_desk.fillRect(ctx);
+}
+function drawEffects(ctx) {
+    effects.forEach(function(ef) {
+        ef.tick();
+        ef.draw(ctx);
+    });
+}
+
+
+
+function refresh() {
+}
+
+
+
+
+function Box(x,y,w,h) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.fillRect = function(ctx) {
+        ctx.fillRect(this.x,this.y,this.w,this.h);
+    }
+    this.getRight = function() { return this.x + this.w; }
+    this.getLeft = function() { return this.x; }
+    this.getTop = function() { return this.y; }
+    this.getBottom = function() { return this.y + this.h; }
+    
+    this.setRight  = function(right) { this.x = right - this.w; }
+    this.setLeft   = function(left)  { this.x = left; }
+    this.setBottom = function(bottom) { this.y = bottom - this.h; }
+    this.setTop    = function(top) { this.y = top; }
+    
+    this.intersects = function(box) {
+        if(this.getRight() >= box.getLeft() 
+        && this.getLeft() <= box.getRight()) {
+            if(this.getBottom() >= box.getTop() 
+            && this.getTop() <= box.getBottom()) {
+                    return true;
+            }
+  		}	
+  		return false;    	
+    }
+}
+
+function rand(lo,hi) {
+    return lo + Math.random()*(hi-lo);
+}
+
+function randColor() {
+    return '#'+Math.floor(Math.random()*16777215).toString(16);
+}
+
+function ParticleEffect() {
+    this.x = 0;
+    this.y = 0;
+    this.age = 0;
+    this.parts = [];
+    this.rate = 1;
+    this.max = 10;
+    this.maxage = 200;
+    this.color = "#aaaaaa";
+    this.alive = true;
+    this.initParticle = function(part) {
+        return part;
+    }
+    this.tick = function() {
+        this.age++;
+        if(this.age > this.maxage) {
+            this.alive = false;
+            return;
+        }
+        if((this.age % this.rate) == 0 && this.parts.length < this.max) {
+            var part = {
+                x:this.x,
+                y:this.y,
+                dx: rand(-3,3),
+                dy: rand(-3,3),
+                alpha:1,
+                dalpha:-0.01,
+                color: this.color,
+                };
+            this.parts.push(this.initParticle(part));
+        }
+        for(var i=0; i<this.parts.length; i++) {
+            var p = this.parts[i];
+            p.y += p.dy;
+            p.x += p.dx;
+            p.alpha += p.dalpha;
+        }
+    }
+    this.draw = function(g) {
+        if(!this.alive) return;
+        g.save();
+        for(var i=0; i<this.parts.length; i++) {
+            var p = this.parts[i];
+            if(p.alpha < 0) continue;
+            g.fillStyle = p.color;
+            g.globalAlpha = p.alpha;
+            g.fillRect(p.x,p.y,20,20);
+        }
+        g.restore();
+    }
+}
+
+setup();
+
+var sin = Math.sin;
+var PI = Math.PI;
+var floor = Math.floor;
+var scale = {
+    C4:261.626,
+    D4:293.665,
+    E4:329.628,
+    F4:349.228,
+    G4:391.995,
+    A4:440.000,
+    B4:493.883,    
+}
+var notes = [scale.E4, scale.F4, scale.E4, scale.F4];
+
+var noteLen = 0.7;
+function note(t) {
+    var cur = (floor(t/noteLen) % notes.length);
+    return notes[cur];
+}
+function tone(t,freq) { 
+    return sin(t*2*PI*freq);
+}
+function lerp(t, lo, hi) { return (hi-lo)*t + lo; }
+
+function adsr(t, a, d, s, r, al, sl) {
+    if(t < a) return lerp(t/a,0,al);
+    t-=a;
+    if(t < d) return lerp(t/d,al,sl);
+    t-=d;
+    if(t < s) return sl;
+    t-=s;
+    if(t < r) return lerp(t/r,sl,0);
+    return 0;
+}
+function envelope(t) {
+    return adsr(t, 0.42, 0.12, 0.12, 0.35, 1.0, 1.0);
+}
+function music(t) {
+    var ti = floor(t/noteLen)*noteLen;
+    var t2 = (t-ti);
+    var te = t2*noteLen;
+    
+    var freq = note(t);
+    var ton = tone(t2, freq);
+    var env = envelope(te);
+    return ton*env;
+}
+
+
+var actx = new webkitAudioContext();
+var jsnode = actx.createScriptProcessor(512,0,1);
+var t = 0;
+jsnode.onaudioprocess = function(e) {
+    var output = e.outputBuffer.getChannelData(0);
+    for (var i = 0; i < output.length; i++) {
+        output[i] = (walksound(t)*music(t)+jumpsound(t)+drum(t)/5)/3; //mix in the jump sound
+        t += 1/44000.0;
+    }
+}
+jsnode.connect(actx.destination);
+
+
+
+function jumpsound(t) {
+    if(player.getBottom() >= ground) return 0;
+    return 0.2*sin(t*2*PI*10*(ground-player.getBottom()));
+}
+
+
+function walksound(t) {
+    if(playerAnim.name != "walking") return 1;
+    return sin(t*2*PI*3);
+}
+
+function drum(t) {
+    var ti = floor(t/noteLen)*noteLen;
+    var t2 = (t-ti)/noteLen;
+    if(t2 < 0.9) return 0;
+    return Math.random();
+}
+
+
+
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+
+window.requestAnimFrame(gameLoop);
+
+</script>
+
+</body>
+</html>
