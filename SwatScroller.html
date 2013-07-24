@@ -1,4 +1,7 @@
 <html>
+<head>
+<link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
+</head>
 <body>
 <canvas id='canvas' width='1024' height='768'></canvas>
 
@@ -12,9 +15,17 @@ var PLAYER_WIDTH = 50;
 var PLAYER_HEIGHT = 100;
 
 
-var DESK_WIDTH = 100;
-var DESK_HEIGHT = 100;
+var DESK_WIDTH = 150;
+var DESK_HEIGHT = 150;
 
+var COMPUTER_SCREEN_WIDTH = 600;
+var COMPUTER_SCREEN_HEIGHT = 300;
+
+var PANIC_WIDTH = 400;
+var PANIC_HEIGHT = 130;
+
+var NUMBER_OF_WORKERS = 6;
+var WORKER_SPACING = 300;  // in pixels
 
 var pressed = {};
 var sprite = new Image();
@@ -25,14 +36,26 @@ var playerAnim = {};	// Player animation setting
 var tick = 0;
 var camera = 0; 				// declare the camera
 
-var ground = 0.8*SCREEN_HEIGHT;
+var ground = 0.82*SCREEN_HEIGHT;
 
-var player = new Box(0,ground,PLAYER_WIDTH,PLAYER_HEIGHT);
-var player_desk = new Box(300,ground,DESK_WIDTH,DESK_HEIGHT);
+var player = new Box(SCREEN_WIDTH/2 - PLAYER_WIDTH/2,ground-PLAYER_HEIGHT,PLAYER_WIDTH,PLAYER_HEIGHT);
+var player_desk = new Box(Math.floor(SCREEN_WIDTH*0.05),Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+var computer_screen = new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_HEIGHT*0.05), COMPUTER_SCREEN_WIDTH,COMPUTER_SCREEN_HEIGHT);
+
+var panic_mode = false;
+var panic_button_pressed = false;
 
 var effects = [];
 playerAnim
 var ctx = document.getElementById('canvas').getContext('2d');
+
+var terminal_listing = [];
+var MAX_TERMINAL_LISTING = 6;
+var domain_names = ["facebook.com","youtube.com","yahoo.com","live.com","msn.com","wikipedia.org","blogspot.com","baidu.com","microsoft.com","qq.com","bing.com","ask.com","adobe.com","taobao.com","twitter.com","youku.com","soso.com","wordpress.com","sohu.com","hao123.com","windows.com","163.com","tudou.com","amazon.com","apple.com","ebay.com","4399.com","yahoo.co.jp","linkedin.com","go.com","tmall.com","paypal.com","sogou.com","ifeng.com","aol.com","xunlei.com","craigslist.org","orkut.com","56.com","orkut.com.br","about.com","skype.com","7k7k.com","dailymotion.com","flickr.com","pps.tv","qiyi.com","bbc.co.uk","4shared.com","mozilla.com","ku6.com","imdb.com","cnet.com","babylon.com","mywebsearch.com","alibaba.com","mail.ru","uol.com.br","badoo.com","cnn.com","myspace.com","netflix.com","weather.com","soku.com","weibo.com","renren.com","rakuten.co.jp","17kuxun.com","yandex.ru","booking.com","ehow.com","bankofamerica.com","58.com","zedo.com","2345.com","globo.com","mapquest.com","goo.ne.jp","answers.com","360.cn","chase.com","naver.com","hp.com","odnoklassniki.ru","alipay.com","huffingtonpost.com","ameblo.jp","ganji.com","alot.com","scribd.com","megaupload.com","tumblr.com","softonic.com","camzap.com","vkontakte.ru","avg.com","walmart.com","pptv.com","xinhuanet.com","mediafire.com"];
+
+
+
+
 
 
 //at the top
@@ -48,6 +71,16 @@ var skyline3 = [];
 for(var i=0; i<300; i++) {
     skyline3[i] = rand(50,300);
 }
+
+// Generate workers
+var workers = [];
+for(var i=0; i<NUMBER_OF_WORKERS; i++) {
+	workers[i] = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+}
+
+
+
+
 
 function setup() {
 
@@ -80,11 +113,16 @@ function setup() {
     });
 }
 
+
+
+
+
+
 function gameLoop() {
     processInput();
     updateGameState();
     checkConditions();
-    processAnimations();
+	processAnimations();
     draw();
     window.requestAnimFrame(gameLoop);
 }
@@ -105,12 +143,23 @@ function updateGameState() {
         player.x -= 4;
         playerAnim.name = "walking";
         playerAnim.dir = -1;
-        //console.log("Pressed left");
     }
     if(pressed['S'.charCodeAt(0)] == true) {
         player.x += 4;
         playerAnim.name = "walking";
     }
+ 
+     if(pressed['P'.charCodeAt(0)] == true) {
+        // If the panic mode button was just pressed, toggle panic mode
+        if (!panic_button_pressed) {
+        	panic_mode = !panic_mode;
+        }
+        panic_button_pressed = true;
+    } else {
+    	panic_button_pressed = false;
+    }
+ 
+ 
     
     if(pressed[' '.charCodeAt(0)] == true) {
         if( !jumping && player.getBottom() >= ground) {
@@ -121,19 +170,22 @@ function updateGameState() {
         jumping = false;
     }    
     
-    if(player.getBottom() < ground) {
+    if(player.getBottom() <= ground) {
         playerAnim.name = "jumping";
     }   
     
     player.y += player.dy;
     player.dy += 1;
  
-    camera = player.x - 200; // update the camera
+    camera = player.x - Math.floor(SCREEN_WIDTH/2); // update the camera
     
     
 }
 
 function checkConditions() {
+
+
+	/*
     if(player.intersects(player_desk)) {
         console.log("player hit the player_desk.");
         
@@ -150,6 +202,7 @@ function checkConditions() {
         effects.push(effect);
         player.x = 0;
     }
+    */
     
     
     // Clean up old effects
@@ -171,9 +224,8 @@ function checkConditions() {
 }
 
 function processAnimations() {
- 
 
-
+	// Every 6th tick, switch to next sprite for current animation
     tick++;
     if(tick % 6 == 0) {
         playerAnim.index++;
@@ -181,26 +233,51 @@ function processAnimations() {
     if(playerAnim.index >= playerAnim[playerAnim.name].length) {
         playerAnim.index = 0;
     }
+    
+    // Scroll terminal window if not in panic mode
+    // by adding a new line
+    if (!panic_mode && (tick % 10 == 0)) {
+    	var domain_index = rand[0, domain_names.length-1];
+    	var domain = domain_names[domain_index];
+		terminal_listing.unshift("123.123.123.123 - [26/Apr/2000:00:23:48] \"GET\" " + domain + "HTTP/1.0\"");
+		console.log( domain_index, domain, terminal_listing[0])
+		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
+			terminal_listing.pop()
+		}	
+    }
+    
+    
 }
 
 function draw() {
     drawBackground(ctx);
-    drawSkyline(ctx);
+    //drawSkyline(ctx);
     drawGround(ctx);
     ctx.save();
     ctx.translate(-camera,0);
-    drawPlayer(ctx);
-    drawplayer_desks(ctx);
-    drawEffects(ctx);
+
+    drawplayer_desk(ctx);
+    draw_computer_screen(ctx);
+    draw_workers(ctx);
+    drawPlayer(ctx);    
+    //drawEffects(ctx);
     ctx.restore();
 }
+
+
+
+
+
 function drawBackground(ctx) {
-    ctx.fillStyle = "#202020";
-    ctx.fillRect(0,0,800,600);
+    ctx.fillStyle = "#FFFFE0";
+    ctx.fillRect(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
 }
+
+
+
 function drawGround(ctx) {
     ctx.fillStyle = "#88ff00";
-    ctx.fillRect(0,400,800,200);
+    ctx.fillRect(0,ground,SCREEN_WIDTH,SCREEN_HEIGHT-ground);
 }
 
 //new function to draw the skyline
@@ -263,10 +340,63 @@ function drawPlayer(ctx) {
 	ctx.restore();
     
 }
-function drawplayer_desks(ctx) {
-    ctx.fillStyle = "#FFFFFF";
+function drawplayer_desk(ctx) {
+    ctx.fillStyle = "#FF0000";
     player_desk.fillRect(ctx);
 }
+
+function draw_computer_screen(ctx) {
+
+
+	if (!panic_mode)
+	{
+		ctx.save();
+		ctx.fillStyle = "#000000";
+		computer_screen.fillRect(ctx);
+	
+		ctx.rect(computer_screen.x,computer_screen.y,computer_screen.w,computer_screen.h);
+		ctx.clip();
+	
+		//123.123.123.123 - - [26/Apr/2000:00:23:48 -0400] "GET /pics/wpaper.gif HTTP/1.0" 200 6248 "http://www.jafsoft.com/asctortf/" "Mozilla/4.05 (Macintosh; I; PPC)"
+		ctx.fillStyle = "#00FF00";
+		ctx.textAlign = 'left';
+		ctx.font="20px 'Droid Sans Mono'";
+		
+		var count = 0;
+		for(var terminal_text in terminal_listing) { 
+			ctx.fillText(terminal_text,computer_screen.getLeft()*1.1,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/2+40-25*count);
+			count++;
+		}
+		ctx.restore();
+		
+		
+ 	} else {
+ 	
+ 	    ctx.fillStyle = "#FF0000";
+		computer_screen.fillRect(ctx);
+		ctx.textBaseline = 'middle';
+		ctx.fillStyle = "#FFFFFF";
+		ctx.textAlign = 'center';
+		ctx.font="110px Arial";
+			ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/2,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/2+40);
+		
+ 	
+ 	}
+    
+    
+}
+
+
+//new function to draw the skyline
+function draw_workers(ctx) {
+    ctx.fillStyle = "#0000FF";
+    for(var i in workers) {
+        workers[i].fillRect(ctx);
+    }
+}  
+
+
+
 function drawEffects(ctx) {
     effects.forEach(function(ef) {
         ef.tick();
@@ -373,87 +503,6 @@ function ParticleEffect() {
 }
 
 setup();
-
-var sin = Math.sin;
-var PI = Math.PI;
-var floor = Math.floor;
-var scale = {
-    C4:261.626,
-    D4:293.665,
-    E4:329.628,
-    F4:349.228,
-    G4:391.995,
-    A4:440.000,
-    B4:493.883,    
-}
-var notes = [scale.E4, scale.F4, scale.E4, scale.F4];
-
-var noteLen = 0.7;
-function note(t) {
-    var cur = (floor(t/noteLen) % notes.length);
-    return notes[cur];
-}
-function tone(t,freq) { 
-    return sin(t*2*PI*freq);
-}
-function lerp(t, lo, hi) { return (hi-lo)*t + lo; }
-
-function adsr(t, a, d, s, r, al, sl) {
-    if(t < a) return lerp(t/a,0,al);
-    t-=a;
-    if(t < d) return lerp(t/d,al,sl);
-    t-=d;
-    if(t < s) return sl;
-    t-=s;
-    if(t < r) return lerp(t/r,sl,0);
-    return 0;
-}
-function envelope(t) {
-    return adsr(t, 0.42, 0.12, 0.12, 0.35, 1.0, 1.0);
-}
-function music(t) {
-    var ti = floor(t/noteLen)*noteLen;
-    var t2 = (t-ti);
-    var te = t2*noteLen;
-    
-    var freq = note(t);
-    var ton = tone(t2, freq);
-    var env = envelope(te);
-    return ton*env;
-}
-
-
-var actx = new webkitAudioContext();
-var jsnode = actx.createScriptProcessor(512,0,1);
-var t = 0;
-jsnode.onaudioprocess = function(e) {
-    var output = e.outputBuffer.getChannelData(0);
-    for (var i = 0; i < output.length; i++) {
-        output[i] = (walksound(t)*music(t)+jumpsound(t)+drum(t)/5)/3; //mix in the jump sound
-        t += 1/44000.0;
-    }
-}
-jsnode.connect(actx.destination);
-
-
-
-function jumpsound(t) {
-    if(player.getBottom() >= ground) return 0;
-    return 0.2*sin(t*2*PI*10*(ground-player.getBottom()));
-}
-
-
-function walksound(t) {
-    if(playerAnim.name != "walking") return 1;
-    return sin(t*2*PI*3);
-}
-
-function drum(t) {
-    var ti = floor(t/noteLen)*noteLen;
-    var t2 = (t-ti)/noteLen;
-    if(t2 < 0.9) return 0;
-    return Math.random();
-}
 
 
 
