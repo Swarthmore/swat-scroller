@@ -46,8 +46,12 @@ var panic_mode = false;
 var panic_button_pressed = false;
 
 var effects = [];
-playerAnim
 var ctx = document.getElementById('canvas').getContext('2d');
+
+this.comp_screen_canvas = document.createElement('canvas');
+this.comp_screen_Ctx = this.comp_screen_canvas.getContext('2d');
+this.comp_screen_canvas.width = COMPUTER_SCREEN_WIDTH;
+this.comp_screen_canvas.height = COMPUTER_SCREEN_HEIGHT;
 
 var terminal_listing = [];
 var MAX_TERMINAL_LISTING = 15;
@@ -249,6 +253,9 @@ function processAnimations() {
 		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
 			terminal_listing.pop()
 		}	
+    
+    	// Draw the computer screen into a secondary canvas
+    	draw_computer_screen(comp_screen_Ctx) 
     }
     
     
@@ -262,12 +269,18 @@ function draw() {
     ctx.translate(-camera,0);
 
     drawplayer_desk(ctx);
-    draw_computer_screen(ctx);
+    copy_computer_screen(ctx);
     draw_workers(ctx);
     drawPlayer(ctx);    
     //drawEffects(ctx);
     ctx.restore();
 }
+
+
+function copy_computer_screen(ctx) {
+    ctx.drawImage(comp_screen_canvas, 0,0);
+}
+
 
 
 
@@ -360,18 +373,18 @@ function draw_computer_screen(ctx) {
 		computer_screen.fillRect(ctx);
 	
 		ctx.rect(computer_screen.x,computer_screen.y,computer_screen.w,computer_screen.h);
+		
 		ctx.clip();
-	
-		//123.123.123.123 - - [26/Apr/2000:00:23:48 -0400] "GET /pics/wpaper.gif HTTP/1.0" 200 6248 "http://www.jafsoft.com/asctortf/" "Mozilla/4.05 (Macintosh; I; PPC)"
 		ctx.fillStyle = "#00FF00";
 		ctx.textAlign = 'left';
 		ctx.font="20px 'Droid Sans Mono'";
 		
 		var count = 0;
 		for(var index in terminal_listing) { 
-			ctx.fillText(terminal_listing[index],computer_screen.getLeft()*1.1,computer_screen.getBottom()-15-25*count);
+			ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),computer_screen.getBottom()-15-25*count);
 			count++;
 		}
+		console.log(count);
 		ctx.restore();
 		
 		
