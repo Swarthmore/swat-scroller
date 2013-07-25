@@ -11,8 +11,8 @@ var SCREEN_WIDTH = 1024;
 var SCREEN_HEIGHT = 768;
 
 
-var PLAYER_WIDTH = 50;
-var PLAYER_HEIGHT = 100;
+var PLAYER_WIDTH = 64;
+var PLAYER_HEIGHT = 128;
 
 
 var DESK_WIDTH = 150;
@@ -50,8 +50,8 @@ var ctx = document.getElementById('canvas').getContext('2d');
 
 this.comp_screen_canvas = document.createElement('canvas');
 this.comp_screen_Ctx = this.comp_screen_canvas.getContext('2d');
-this.comp_screen_canvas.width = COMPUTER_SCREEN_WIDTH;
-this.comp_screen_canvas.height = COMPUTER_SCREEN_HEIGHT;
+this.comp_screen_canvas.width = COMPUTER_SCREEN_WIDTH/2;
+this.comp_screen_canvas.height = COMPUTER_SCREEN_HEIGHT/2;
 
 var terminal_listing = [];
 var MAX_TERMINAL_LISTING = 15;
@@ -156,7 +156,8 @@ function updateGameState() {
      if(pressed['P'.charCodeAt(0)] == true) {
         // If the panic mode button was just pressed, toggle panic mode
         if (!panic_button_pressed) {
-        	panic_mode = !panic_mode;
+        	panic_mode = !panic_mode;        	
+        	
         }
         panic_button_pressed = true;
     } else {
@@ -236,13 +237,16 @@ function processAnimations() {
     if(tick % 6 == 0) {
         playerAnim.index++;
     }
+    
+
+    
     if(playerAnim.index >= playerAnim[playerAnim.name].length) {
         playerAnim.index = 0;
     }
     
     // Scroll terminal window if not in panic mode
     // by adding a new line
-    if (!panic_mode && (tick % 10 == 0)) {
+    if (!panic_mode && (tick % 50 == 0)) {
     	var domain_index = Math.floor(rand(0, domain_names.length-1));
     	var domain = domain_names[domain_index];
     	
@@ -253,13 +257,42 @@ function processAnimations() {
 		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
 			terminal_listing.pop()
 		}	
-    
-    	// Draw the computer screen into a secondary canvas
-    	draw_computer_screen(comp_screen_Ctx) 
+
     }
+    // Draw the computer screen into a secondary canvas
+    draw_computer_screen(comp_screen_Ctx) 
     
     
+    if (panic_mode && tick % 10 ) {
+    
+		// Generate particle "steam"
+		var effect = new ParticleEffect();
+		effect.x = player.x + player.w/2;		// Default
+		effect.y = Math.round(ground-player.h*0.75);
+		effect.max = 4;
+		effect.initParticle = function(part) {
+			
+			part.dy = rand(-5,0);
+	
+			// Generate steam based on which direction player is moving
+			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
+				part.dx = rand(-3,0);		// Walking right
+				effect.x = player.x;		// Shift particles to the left
+			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
+				part.dx = rand(0,3);		// Walking left
+				effect.x = Math.round(player.x + player.w);	// Shift particles to the right
+			} else {
+				part.dx = rand(-3,3);			// Not walking
+			}
+			part.color = "#EEEEEE";
+			return part;
+		};
+		effects.push(effect);
+	}
 }
+
+
+
 
 function draw() {
     drawBackground(ctx);
@@ -272,13 +305,13 @@ function draw() {
     copy_computer_screen(ctx);
     draw_workers(ctx);
     drawPlayer(ctx);    
-    //drawEffects(ctx);
+    drawEffects(ctx);
     ctx.restore();
 }
 
 
 function copy_computer_screen(ctx) {
-    ctx.drawImage(comp_screen_canvas, 0,0);
+    ctx.drawImage(comp_screen_canvas, 0,0, COMPUTER_SCREEN_WIDTH/2, COMPUTER_SCREEN_HEIGHT/2,0,0, COMPUTER_SCREEN_WIDTH, COMPUTER_SCREEN_HEIGHT);
 }
 
 
@@ -323,9 +356,6 @@ function drawSkyline(ctx) {
     
     ctx.restore();   
 
-
-
-
     ctx.save();
     ctx.translate(-camera/2, 0);
     ctx.fillStyle = "#442222";
@@ -342,20 +372,37 @@ function drawSkyline(ctx) {
 
 
 function drawPlayer(ctx) {
+   
+   	ctx.fillStyle = "#FF0000";
+    player.fillRect(ctx);
+    
     
     ctx.save();
-	ctx.translate(player.x,player.y);
+    
+    ctx.moveTo(player.x, 0);
+    ctx.lineTo(player.x, SCREEN_HEIGHT);
+    ctx.stroke();
+    
+	ctx.translate(player.x - player.w/2,player.y+player.h/2);
+	//ctx.fillRect(-64, -152, 256, 256);
     var slice = playerAnim[playerAnim.name][playerAnim.index];
     ctx.imageSmoothingEnabled = false;
     ctx.mozImageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
     ctx.scale(playerAnim.dir, 1);
+    if (playerAnim.dir < 0) {
+    	var x_offset = -192
+    } else {
+    	 var x_offset = -64
+    }
 	ctx.drawImage(sprite,
 	    slice.x,slice.y,64,64, //src
-	    -64-32,-64-32-20,128*2,128*2 //dst
+	    x_offset,-152,128*2,128*2 //dst
 	    );
    
 	ctx.restore();
+	
+
     
 }
 function drawplayer_desk(ctx) {
@@ -365,7 +412,10 @@ function drawplayer_desk(ctx) {
 
 function draw_computer_screen(ctx) {
 
-
+    ctx.imageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    
 	if (!panic_mode)
 	{
 		ctx.save();
@@ -377,14 +427,13 @@ function draw_computer_screen(ctx) {
 		ctx.clip();
 		ctx.fillStyle = "#00FF00";
 		ctx.textAlign = 'left';
-		ctx.font="20px 'Droid Sans Mono'";
+		ctx.font="10px 'Droid Sans Mono'";
 		
 		var count = 0;
 		for(var index in terminal_listing) { 
-			ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),computer_screen.getBottom()-15-25*count);
+			ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),Math.round(computer_screen.getBottom()/2)-20-12*count);
 			count++;
 		}
-		console.log(count);
 		ctx.restore();
 		
 		
@@ -395,8 +444,8 @@ function draw_computer_screen(ctx) {
 		ctx.textBaseline = 'middle';
 		ctx.fillStyle = "#FFFFFF";
 		ctx.textAlign = 'center';
-		ctx.font="110px Arial";
-			ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/2,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/2+40);
+		ctx.font="80px Arial";
+			ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/4,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/4+20);
 		
  	
  	}
@@ -474,7 +523,7 @@ function ParticleEffect() {
     this.age = 0;
     this.parts = [];
     this.rate = 1;
-    this.max = 10;
+    this.max = 1;
     this.maxage = 200;
     this.color = "#aaaaaa";
     this.alive = true;
@@ -493,7 +542,7 @@ function ParticleEffect() {
                 y:this.y,
                 dx: rand(-3,3),
                 dy: rand(-3,3),
-                alpha:1,
+                alpha:0.5,
                 dalpha:-0.01,
                 color: this.color,
                 };
@@ -515,6 +564,8 @@ function ParticleEffect() {
             g.fillStyle = p.color;
             g.globalAlpha = p.alpha;
             g.fillRect(p.x,p.y,20,20);
+            //g.arc(p.x,p.y,20, 0, 2 * Math.PI);
+            //g.fill();
         }
         g.restore();
     }
