@@ -79,7 +79,10 @@ for(var i=0; i<300; i++) {
 // Generate workers
 var workers = [];
 for(var i=0; i<NUMBER_OF_WORKERS; i++) {
-	workers[i] = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+	workers[i] = {}
+	workers[i].location = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+	workers[i].anim_index = i;
+	workers[i].anim_name = "idle"
 }
 
 
@@ -164,28 +167,8 @@ function updateGameState() {
     	panic_button_pressed = false;
     }
  
- 
-    /*
-    if(pressed[' '.charCodeAt(0)] == true) {
-        if( !jumping && player.getBottom() >= ground) {
-            player.dy -= 25  ;
-            jumping = true;
-        }
-    } else {
-        jumping = false;
-    }    
-    
-    if(player.getBottom() <= ground) {
-        playerAnim.name = "jumping";
-    }   
-
-    
-    player.y += player.dy;
-    player.dy += 1;
-	 */
- 
-    camera = player.x - Math.floor(SCREEN_WIDTH/2); // update the camera
-    
+	// Move the camera to scroll the screen 
+    camera = player.x - Math.floor(SCREEN_WIDTH/2); // update the camera   
     
 }
 
@@ -215,20 +198,16 @@ function checkConditions() {
     // Clean up old effects
 	for (var i=0; i < effects.length; i++)
 	{
-        if (effects[i].age > effects[i].maxage) {
+        if (!effects[i].alive) {
         	effects.splice(i, 1);	
         }
     }
-    
-    // Check to see if player hits the ground
-    if(player.getBottom() > ground) {
-    	player.dy = 0;
-    	player.setBottom(ground);
-	}
-    
-    
+
     
 }
+
+
+
 
 function processAnimations() {
 
@@ -237,13 +216,23 @@ function processAnimations() {
     if(tick % 6 == 0) {
         playerAnim.index++;
     }
-    
-
-    
     if(playerAnim.index >= playerAnim[playerAnim.name].length) {
         playerAnim.index = 0;
     }
-    
+
+	// Animate workers
+	for(var i in workers) {
+	
+		// Make them on different phases of animation
+		if(tick % 6 == 0) {
+        	workers[i].anim_index++;
+    	}
+	
+		if(workers[i].anim_index >= playerAnim[workers[i].anim_name].length) {
+			workers[i].anim_index = 0;
+		} 
+	}
+   
     // Scroll terminal window if not in panic mode
     // by adding a new line
     if (!panic_mode && (tick % 50 == 0)) {
@@ -270,23 +259,26 @@ function processAnimations() {
 		effect.x = player.x + player.w/2;		// Default
 		effect.y = Math.round(ground-player.h*0.75);
 		effect.max = 4;
-		effect.initParticle = function(part) {
+		
+		/*effect.initParticle = function(part) {
 			
 			part.dy = rand(-5,0);
 	
 			// Generate steam based on which direction player is moving
 			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
 				part.dx = rand(-3,0);		// Walking right
-				effect.x = player.x;		// Shift particles to the left
+				effect.x = player.x + 500;		// Shift particles to the left
 			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
 				part.dx = rand(0,3);		// Walking left
 				effect.x = Math.round(player.x + player.w);	// Shift particles to the right
 			} else {
 				part.dx = rand(-3,3);			// Not walking
 			}
+			
 			part.color = "#EEEEEE";
 			return part;
 		};
+		*/
 		effects.push(effect);
 	}
 }
@@ -406,8 +398,19 @@ function drawPlayer(ctx) {
     
 }
 function drawplayer_desk(ctx) {
+
     ctx.fillStyle = "#FF0000";
     player_desk.fillRect(ctx);
+    
+    ctx.save();
+	ctx.translate(player_desk.x,player_desk.y);
+    
+    ctx.drawImage(sprite,
+	    0,64*3,64,64, //src
+	    -48,-128,128*2,128*2 //dst
+	    );
+    ctx.restore();
+    
 }
 
 function draw_computer_screen(ctx) {
@@ -418,6 +421,7 @@ function draw_computer_screen(ctx) {
     
 	if (!panic_mode)
 	{
+		/*
 		ctx.save();
 		ctx.fillStyle = "#000000";
 		computer_screen.fillRect(ctx);
@@ -431,10 +435,11 @@ function draw_computer_screen(ctx) {
 		
 		var count = 0;
 		for(var index in terminal_listing) { 
-			ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),Math.round(computer_screen.getBottom()/2)-20-12*count);
+			//ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),Math.round(computer_screen.getBottom()/2)-20-12*count);
 			count++;
 		}
 		ctx.restore();
+		*/
 		
 		
  	} else {
@@ -458,9 +463,35 @@ function draw_computer_screen(ctx) {
 function draw_workers(ctx) {
     ctx.fillStyle = "#0000FF";
     for(var i in workers) {
-        workers[i].fillRect(ctx);
+        workers[i].location.fillRect(ctx);
+        
+        // Draw Desk
+        ctx.save();
+		ctx.translate(workers[i].location.x,workers[i].location.y);
+		ctx.drawImage(sprite,
+			0,64*3,64,64, //src
+			-48,-128,128*2,128*2 //dst
+			);
+		ctx.restore();
+         
+         // Draw worker 
+        ctx.save();      
+        ctx.translate(workers[i].location.x - workers[i].location.w/2,workers[i].location.y+workers[i].location.h/2);
+		var slice = playerAnim[workers[i].anim_name][workers[i].anim_index];
+		ctx.imageSmoothingEnabled = false;
+		ctx.mozImageSmoothingEnabled = false;
+		ctx.webkitImageSmoothingEnabled = false;
+		ctx.drawImage(sprite,
+			slice.x,slice.y,64,64, //src
+			-64,-152,128*2,128*2 //dst
+			);
+		ctx.restore();  
     }
 }  
+
+
+
+
 
 
 
@@ -522,7 +553,7 @@ function ParticleEffect() {
     this.y = 0;
     this.age = 0;
     this.parts = [];
-    this.rate = 1;
+    this.rate = 10;
     this.max = 1;
     this.maxage = 200;
     this.color = "#aaaaaa";
@@ -537,15 +568,29 @@ function ParticleEffect() {
             return;
         }
         if((this.age % this.rate) == 0 && this.parts.length < this.max) {
+        	
+        	// Default part
             var part = {
                 x:this.x,
                 y:this.y,
                 dx: rand(-3,3),
-                dy: rand(-3,3),
+                dy: rand(-5,0),
                 alpha:0.5,
                 dalpha:-0.01,
-                color: this.color,
+                color: "#EEEEEE"
                 };
+            
+            // Generate steam based on which direction player is moving
+            // Adjust defaults as needed
+			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
+				part.dx = rand(-2,0);		// Walking right
+				//x = player.x;		// Shift particles to the left
+			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
+				part.dx = rand(0,2);		// Walking left
+				part.x = part.x - 20;
+				//x = Math.round(player.x + player.w);	// Shift particles to the right
+			}
+			 
             this.parts.push(this.initParticle(part));
         }
         for(var i=0; i<this.parts.length; i++) {
