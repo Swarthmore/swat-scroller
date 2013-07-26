@@ -5,13 +5,20 @@
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <style>
 #canvas-wrap { position:relative } /* Make this a positioned parent */
-#overlay     { position:absolute; top:80px; left:60px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:400px; }
+#terminal_window     { position:absolute; top:50px; left:50px; font-family:Courier; font-size:13pt; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:300px; }
+#data_entry_window  { position:absolute; top:350px; left:50px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:25px; }
+#player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
+
 </style>
 </head>
 <body>
 <div id="canvasWrap">
 <canvas id='canvas' width='1024' height='768'></canvas>
-<div id="overlay">>></div>
+<div id='overlay' style='border:2px'>
+	<div id="terminal_window"><table><tbody></tbody></table><BR></div>
+	<div id="data_entry_window">$&nbsp;<input id='player_input' type='text'></div>
+</div>
+
 </div>
 <script>
 
@@ -41,6 +48,7 @@ sprite.src = "nick-sprite.png";
 var dir = 1;			// Player direction
 var playerAnim = {};	// Player animation setting
 var show_terminal=false; //Show terminal window
+var ip_listing = [];
 var tick = 0;
 var camera = 0; 				// declare the camera
 
@@ -52,6 +60,9 @@ var computer_screen = new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_H
 
 var panic_mode = false;
 var panic_button_pressed = false;
+var lock_computer = false; 
+
+var hits = 0;
 
 var effects = [];
 var ctx = document.getElementById('canvas').getContext('2d');
@@ -87,6 +98,7 @@ function setup() {
 	playerAnim.index = 0;
 	playerAnim.name = "idle";
 	player.dy = 0;
+	hits = 0;
 
 	// Set up typing animation
 	playerAnim.typing = [];
@@ -124,6 +136,12 @@ function setup() {
 		pressed[e.keyCode] = false;  
 	});
 	
+	$("#player_input").keyup(function (e) {
+    if (e.keyCode == 13) {
+       check_terminal_input()
+    }
+});
+	
 }
 
 
@@ -152,28 +170,44 @@ function updateGameState() {
 	playerAnim.name = "idle";
 	playerAnim.dir = 1
 
-	if(pressed['A'.charCodeAt(0)] == true) {
-		player.x -= 4;
-		playerAnim.name = "walking";
-		playerAnim.dir = -1;
-	}
-	if(pressed['S'.charCodeAt(0)] == true) {
-		player.x += 4;
-		playerAnim.name = "walking";
-	}
-	if(pressed['T'.charCodeAt(0)] == true) {
-		playerAnim.name = "typing";
-	}
-
-	if(pressed['P'.charCodeAt(0)] == true) {
-		// If the panic mode button was just pressed, toggle panic mode
-		if (!panic_button_pressed) {
-			panic_mode = !panic_mode;        		
+	// Only check player keys when computer is locked
+	if ((show_terminal && lock_computer) || !show_terminal) {
+		if(pressed['A'.charCodeAt(0)] == true) {
+			player.x -= 4;
+			playerAnim.name = "walking";
+			playerAnim.dir = -1;
+		}
+		if(pressed['S'.charCodeAt(0)] == true) {
+			player.x += 4;
+			playerAnim.name = "walking";
+		}
+		if(pressed['T'.charCodeAt(0)] == true) {
+			playerAnim.name = "typing";
 		}	
-		panic_button_pressed = true;
+
+		
+		if(pressed['P'.charCodeAt(0)] == true) {
+			// If the panic mode button was just pressed, toggle panic mode
+			if (!panic_button_pressed) {
+				panic_mode = !panic_mode;        		
+			}	
+			panic_button_pressed = true;
+			lock_computer = true;
+		} else {
+			panic_button_pressed = false;
+		}
+		
+		// End of keys to check when terminal is locked
 	} else {
-		panic_button_pressed = false;
+		// Escape key
+		if(pressed[27] == true) {
+			lock_computer = true;
+			console.log("Lock computer");
+		}
 	}
+	
+	
+
 
 	// Move the camera to scroll the screen 
 	// Don't scroll past the starting point
@@ -187,17 +221,40 @@ function updateGameState() {
 function checkConditions() {
 
 	if(player.intersects(player_desk)) {
-		show_terminal= true;    
+		// if the terminal isn't locked, show the terminal
+		if (!lock_computer) { 
+			$("#player_input").focus();
+		} else {
+			$("#player_input").blur();
+		
+			// Computer is locked - check to see if the player has unlocked the computer
+			if(pressed[13] == true) {	// 27 = enter key
+				lock_computer = false;
+			}
+
+		}
+		
+		// In any case, if the player is overlapping the desk, show the typing mode and the terminal
 		playerAnim.name = "typing"
+		show_terminal= true;   
+
 	} else {
 		show_terminal= false; 
+		lock_computer = false;
+		$("#player_input").blur();
 	}
+
+
 
 	// Clean up dead effects
 	for (var i=0; i < effects.length; i++) {
 		if (!effects[i].alive) {effects.splice(i, 1);}
 	}
 }
+
+
+
+
 
 
 
@@ -246,21 +303,30 @@ function processAnimations() {
 		var d=new Date();
 		var datestamp = ('0' + d.getMonth()).slice(-2) + "/" + ('0' + d.getDate()).slice(-2) + "/" + d.getFullYear() + " " + ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
 		
-		terminal_listing.unshift(ip + "[" + datestamp + "] \"GET\" " + domain + " HTTP/1.0\"");
+		// Randomly select an IP to highlight
+		// Assume not a highlighted record
+		var color = "green"
+		var target_record = false;
+		
+		if (rand(0,5) > 4) {
+			color = "red"
+			target_record = true;
+		}	
+				
+		var ip_record = {
+			ip_address: ip,
+			log_entry: "<tr style='color:" + color + ";'><td style='width:170px;text-align:left;'>" + ip + "</td><td style='width:240px;text-align:left;'>[" + datestamp + "]</td><td style='width:375px;text-align:left;'>\"GET\" " + domain + " HTTP/1.0\"</td>",
+			hit: target_record
+		}
+		
+		terminal_listing.unshift(ip_record);
 		//console.log( domain_index, domain, terminal_listing[0])
 		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
 			terminal_listing.pop()
 		}	
-	
-		// Randomly select an IP to highlight
-		var color = "green"
-		if (rand(0,5) > 4) {
-			color = "red"
-		}
-	
-	
-		$("#overlay").append("<span style='color:" + color + "'>" + terminal_listing[0] + "</scan><BR>");
-		$("#overlay").scrollTop($("#overlay")[0].scrollHeight);
+
+		$("#terminal_window > table > tbody:last").append(terminal_listing[0].log_entry);
+		$("#terminal_window").scrollTop($("#terminal_window")[0].scrollHeight);
 
 	}
 	// Draw the computer screen into a secondary canvas
@@ -274,33 +340,27 @@ function processAnimations() {
 		effect.x = player.x + player.w/2;		// Default
 		effect.y = Math.round(ground-player.h*0.75);
 		effect.max = 4;
-	
-		/*effect.initParticle = function(part) {
-		
-			part.dy = rand(-5,0);
-
-			// Generate steam based on which direction player is moving
-			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
-				part.dx = rand(-3,0);		// Walking right
-				effect.x = player.x + 500;		// Shift particles to the left
-			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
-				part.dx = rand(0,3);		// Walking left
-				effect.x = Math.round(player.x + player.w);	// Shift particles to the right
-			} else {
-				part.dx = rand(-3,3);			// Not walking
-			}
-		
-			part.color = "#EEEEEE";
-			return part;
-		};
-		*/
 		effects.push(effect);
 	}
 }
 
 
 
-
+function check_terminal_input()
+{
+	test_input = $("#player_input").val();
+	// Loop through the possible values, looking for a match
+	for (var i in terminal_listing)
+	{
+		// Check to see if this listing is a hit -- if so, see if the IP matches the user input
+		if (terminal_listing[i].hit && test_input == terminal_listing[i].ip_address) {
+			hits++;
+			alert("HIT\nTotal points: " + hits);
+			$("#player_input").val("");		// Clear input
+			return;
+		}
+	}
+}
 
 
 
