@@ -51,6 +51,7 @@ var show_terminal=false; //Show terminal window
 var ip_listing = [];
 var tick = 0;
 var camera = 0; 				// declare the camera
+var jumping = false;
 
 var ground = 0.82*SCREEN_HEIGHT;
 
@@ -185,7 +186,17 @@ function updateGameState() {
 			playerAnim.name = "typing";
 		}	
 
-		
+		if(pressed[' '.charCodeAt(0)] == true) {
+			// Only permit jumps if not already pressing the jump key and not already jumping
+			if( !jumping && player.getBottom() >= ground) {
+				player.dy -= 20;
+				jumping = true;
+			}
+		} else {
+			jumping = false;
+		}
+    
+    
 		if(pressed['P'.charCodeAt(0)] == true) {
 			// If the panic mode button was just pressed, toggle panic mode
 			if (!panic_button_pressed) {
@@ -207,7 +218,8 @@ function updateGameState() {
 	}
 	
 	
-
+    player.y += player.dy;
+    player.dy += 1;
 
 	// Move the camera to scroll the screen 
 	// Don't scroll past the starting point
@@ -245,6 +257,11 @@ function checkConditions() {
 	}
 
 
+	// Make sure player doesn't go below the ground
+    if(player.getBottom() > ground) {
+        player.dy = 0;
+        player.setBottom(ground);
+    }
 
 	// Clean up dead effects
 	for (var i=0; i < effects.length; i++) {
