@@ -469,15 +469,17 @@ function ParticleEffect() {
 		
 			// Generate steam based on which direction player is moving
 			// Adjust defaults as needed
-			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
+			if ( (playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir > 0) {
 				part.dx = rand(-2,0);		// Walking right
-				//x = player.x;		// Shift particles to the left
+				part.y = player.y
 				this.parts.push(this.initParticle(part));
-			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
+				
+			} else if ((playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir < 0) {
 				part.dx = rand(0,2);		// Walking left
 				part.x = part.x - 20;
-				//x = Math.round(player.x + player.w);	// Shift particles to the right
+				part.y = player.y
 				this.parts.push(this.initParticle(part));
+				
 			} else if (playerAnim.name == "idle" || playerAnim.name == "typing") {
 				part.dx = rand(-3,0);		// Walking left
 				part.x = part.x - 45;
