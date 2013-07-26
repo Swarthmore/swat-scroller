@@ -5,21 +5,88 @@
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
 <style>
 #canvas-wrap { position:relative } /* Make this a positioned parent */
+
 #terminal_window     { position:absolute; top:50px; left:50px; font-family:Courier; font-size:13pt; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:300px; }
+
 #data_entry_window  { position:absolute; top:350px; left:50px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:25px; }
+
 #player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
+
+#worker_bubble     { position: absolute;
+top:50px; left:400px;
+width: 400px;
+height: 350px;
+margin: 2em auto 10px;
+color: #000;
+background: #ffed26;
+-webkit-border-top-left-radius: 400px 350px;
+-webkit-border-top-right-radius: 400px 350px;
+-webkit-border-bottom-right-radius: 400px 350px;
+-webkit-border-bottom-left-radius: 400px 350px;
+-moz-border-radius: 400px / 350px;
+border-radius: 400px / 350px;}
+
+#worker_bubble p:before {
+content: "";
+position: absolute;
+z-index: -1;
+bottom: -30px;
+right: 55%;
+width: 180px;
+height: 60px;
+background: #fff;
+-webkit-border-bottom-right-radius: 40px 50px;
+-moz-border-radius-bottomright: 40px 50px;
+border-bottom-right-radius: 40px 50px;
+-webkit-transform: translate(-30px, -2px);
+-moz-transform: translate(-30px, -2px);
+-ms-transform: translate(-30px, -2px);
+-o-transform: translate(-30px, -2px);
+transform: translate(-30px, -2px);
+}
+
+
+#worker_bubble p:after {
+content: "";
+position: absolute;
+z-index: -2;
+bottom: -30px;
+right: 25%;
+height: 80px;
+border-right: 200px solid #ffed26;
+background: #ffed26;
+-webkit-border-bottom-right-radius: 200px 100px;
+-moz-border-radius-bottomright: 200px 100px;
+border-bottom-right-radius: 200px 100px;
+-webkit-transform: translate(0, -2px);
+-moz-transform: translate(0, -2px);
+-ms-transform: translate(0, -2px);
+-o-transform: translate(0, -2px);
+transform: translate(0, -2px);
+display: block;
+width: 0;
+}
+
 
 </style>
 </head>
 <body>
 <div id="canvasWrap">
 <canvas id='canvas' width='1024' height='768'></canvas>
+<!--
+<div id='worker_bubble' ><p>Hello</p></div>
+-->
 <div id='overlay' style='border:2px'>
 	<div id="terminal_window"><table><tbody></tbody></table><BR></div>
 	<div id="data_entry_window">$&nbsp;<input id='player_input' type='text'></div>
+	
 </div>
 
+
+
+
 </div>
+
 <script>
 
 var SCREEN_WIDTH = 1024;
@@ -62,6 +129,7 @@ var computer_screen = new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_H
 var panic_mode = false;
 var panic_button_pressed = false;
 var lock_computer = false; 
+var player_desk_sprite_x;
 
 var hits = 0;
 
@@ -100,6 +168,8 @@ function setup() {
 	playerAnim.name = "idle";
 	player.dy = 0;
 	hits = 0;
+	player_desk_sprite_x = 64*Math.round(rand(2,3))
+
 
 	// Set up typing animation
 	playerAnim.typing = [];
@@ -127,6 +197,9 @@ function setup() {
 		workers[i].location = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
 		workers[i].anim_index = i;
 		workers[i].anim_name = "typing"
+		workers[i].sprite_y = 64*Math.floor(rand(4,7));		// Workers are in rows 5-7
+		workers[i].computer_sprite_x = 64*Math.round(rand(0,1))
+		workers[i].desk_sprite_x = 64*Math.round(rand(2,3))
 	}
 	
 	// Set up keypress listing
@@ -471,13 +544,13 @@ function ParticleEffect() {
 			// Adjust defaults as needed
 			if ( (playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir > 0) {
 				part.dx = rand(-2,0);		// Walking right
-				part.y = player.y
+				part.y = player.y + 30;
 				this.parts.push(this.initParticle(part));
 				
 			} else if ((playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir < 0) {
 				part.dx = rand(0,2);		// Walking left
 				part.x = part.x - 20;
-				part.y = player.y
+				part.y = player.y + 30;
 				this.parts.push(this.initParticle(part));
 				
 			} else if (playerAnim.name == "idle" || playerAnim.name == "typing") {
@@ -549,6 +622,7 @@ function draw(ctx) {
     drawPlayer(ctx);    
     drawEffects(ctx);
     ctx.restore();
+    draw_worker_bubble(camera);
 }
 
 
@@ -558,7 +632,11 @@ function copy_computer_screen(ctx) {
 
 
 
+function draw_worker_bubble(camera)
+{
+	//$("#worker").
 
+}
 
 
 function drawBackground(ctx) {
@@ -573,44 +651,6 @@ function drawGround(ctx) {
     ctx.fillRect(0,ground,SCREEN_WIDTH,SCREEN_HEIGHT-ground);
 }
 
-//new function to draw the skyline
-function drawSkyline(ctx) {
-
-
-    ctx.save();
-    ctx.translate(-camera/8, 0);
-    ctx.fillStyle = "#222244";
-    for(var i in skyline3) {
-        var h = skyline3[i];
-        ctx.fillRect(i*50/3, ground - h, 51/3, h);
-    }
-    
-    ctx.restore();   
-
-
-    ctx.save();
-    ctx.translate(-camera/4, 0);
-    ctx.fillStyle = "#224422";
-    for(var i in skyline2) {
-        var h = skyline2[i];
-        ctx.fillRect(i*25, ground - h, 26, h);
-    }
-    
-    ctx.restore();   
-
-    ctx.save();
-    ctx.translate(-camera/2, 0);
-    ctx.fillStyle = "#442222";
-    for(var i in skyline1) {
-        var h = skyline1[i];
-        ctx.fillRect(i*50, ground - h, 51, h);
-    }
-    
-    ctx.restore();
-    
- 
-}
-
 
 
 function drawPlayer(ctx) {
@@ -618,15 +658,8 @@ function drawPlayer(ctx) {
    	//ctx.fillStyle = "#FF0000";
     //player.fillRect(ctx);
     
-    
-    ctx.save();
-    
-    //ctx.moveTo(player.x, 0);
-    //ctx.lineTo(player.x, SCREEN_HEIGHT);
-    //ctx.stroke();
-    
+    ctx.save();    
 	ctx.translate(player.x - player.w/2,player.y+player.h/2);
-	//ctx.fillRect(-64, -152, 256, 256);
     var slice = playerAnim[playerAnim.name][playerAnim.index];
 
     ctx.scale(playerAnim.dir, 1);
@@ -640,11 +673,10 @@ function drawPlayer(ctx) {
 	    x_offset,-152,128*2,128*2 //dst
 	    );
    
-	ctx.restore();
-	
-
-    
+	ctx.restore();    
 }
+
+
 function drawplayer_desk(ctx) {
 
     ctx.fillStyle = "#FF0000";
@@ -652,10 +684,10 @@ function drawplayer_desk(ctx) {
     
     ctx.save();
 	ctx.translate(player_desk.x,player_desk.y);
-    
-    ctx.drawImage(sprite,
+    ctx.drawImage(sprite, player_desk_sprite_x,64*3, 64,64, -60,-91, 128*2,128*2);
+    ctx.drawImage(sprite, 
 	    0,64*3,64,64, //src
-	    -48,-128,128*2,128*2 //dst
+	    -48,-140,128*2,128*2 //dst
 	    );
     ctx.restore();
     
@@ -663,9 +695,6 @@ function drawplayer_desk(ctx) {
 
 function draw_computer_screen(ctx) {
 
-    ctx.imageSmoothingEnabled = false;
-    ctx.mozImageSmoothingEnabled = false;
-    ctx.webkitImageSmoothingEnabled = false;
     
 	if (!panic_mode && show_terminal)
 	{
@@ -705,7 +734,8 @@ function draw_workers(ctx) {
         //workers[i].location.fillRect(ctx);
         ctx.save();
 		ctx.translate(workers[i].location.x,workers[i].location.y);
-		ctx.drawImage(sprite, 0,64*3, 64,64, -80,-128, 128*2,128*2);
+		ctx.drawImage(sprite, workers[i].desk_sprite_x,64*3, 64,64, -100,-91, 128*2,128*2);
+		ctx.drawImage(sprite, workers[i].computer_sprite_x,64*3, 64,64, -80,-128, 128*2,128*2);	
 		ctx.restore();
          
          // Draw worker 
@@ -715,7 +745,7 @@ function draw_workers(ctx) {
 		ctx.imageSmoothingEnabled = false;
 		ctx.mozImageSmoothingEnabled = false;
 		ctx.webkitImageSmoothingEnabled = false;
-		ctx.drawImage(sprite, slice.x,slice.y, 64,64, -64,-152, 128*2,128*2);
+		ctx.drawImage(sprite, slice.x,workers[i].sprite_y, 64,64, -64,-152, 128*2,128*2);
 		ctx.restore();  
     } // End of loop through workers
 }  
