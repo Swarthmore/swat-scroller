@@ -1,11 +1,19 @@
 <html>
 <head>
 <link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
+<!--<script data-main="./main.js" src="require.js"></script>-->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<style>
+#canvas-wrap { position:relative } /* Make this a positioned parent */
+#overlay     { position:absolute; top:80px; left:60px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:400px; }
+</style>
 </head>
 <body>
+<div id="canvasWrap">
 <canvas id='canvas' width='1024' height='768'></canvas>
-
-<script type='text/javascript'>
+<div id="overlay">>></div>
+</div>
+<script>
 
 var SCREEN_WIDTH = 1024;
 var SCREEN_HEIGHT = 768;
@@ -15,8 +23,8 @@ var PLAYER_WIDTH = 64;
 var PLAYER_HEIGHT = 128;
 
 
-var DESK_WIDTH = 150;
-var DESK_HEIGHT = 150;
+var DESK_WIDTH = 64;
+var DESK_HEIGHT = 128;
 
 var COMPUTER_SCREEN_WIDTH = 600;
 var COMPUTER_SCREEN_HEIGHT = 300;
@@ -32,7 +40,7 @@ var sprite = new Image();
 sprite.src = "nick-sprite.png";
 var dir = 1;			// Player direction
 var playerAnim = {};	// Player animation setting
-
+var show_terminal=false; //Show terminal window
 var tick = 0;
 var camera = 0; 				// declare the camera
 
@@ -48,6 +56,11 @@ var panic_button_pressed = false;
 var effects = [];
 var ctx = document.getElementById('canvas').getContext('2d');
 
+ctx.imageSmoothingEnabled = false;
+ctx.mozImageSmoothingEnabled = false;
+ctx.webkitImageSmoothingEnabled = false;
+
+
 this.comp_screen_canvas = document.createElement('canvas');
 this.comp_screen_Ctx = this.comp_screen_canvas.getContext('2d');
 this.comp_screen_canvas.width = COMPUTER_SCREEN_WIDTH/2;
@@ -61,29 +74,8 @@ var domain_names = ["facebook.com","youtube.com","yahoo.com","live.com","msn.com
 
 
 
-
-//at the top
-var skyline1 = [];
-for(var i=0; i<100; i++) {
-    skyline1[i] = rand(50,200);
-}
-var skyline2 = [];
-for(var i=0; i<200; i++) {
-    skyline2[i] = rand(50,200);
-}
-var skyline3 = [];
-for(var i=0; i<300; i++) {
-    skyline3[i] = rand(50,300);
-}
-
 // Generate workers
 var workers = [];
-for(var i=0; i<NUMBER_OF_WORKERS; i++) {
-	workers[i] = {}
-	workers[i].location = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
-	workers[i].anim_index = i;
-	workers[i].anim_name = "idle"
-}
 
 
 
@@ -91,33 +83,47 @@ for(var i=0; i<NUMBER_OF_WORKERS; i++) {
 
 function setup() {
 
+	// Setup player
+	playerAnim.index = 0;
+	playerAnim.name = "idle";
 	player.dy = 0;
 
-	// Set up idle animation
+	// Set up typing animation
+	playerAnim.typing = [];
+	for(var i=0; i<4; i++) {
+		playerAnim.typing.push({x:i*64, y:0});
+	}
+	//Set up idle animation
 	playerAnim.idle = [];
-    for(var i=0; i<4; i++) {
-        playerAnim.idle.push({x:i*64, y:0});
-    }
+	for(var i=0; i<2; i++) {
+		playerAnim.idle.push({x:i*64, y:128});
+	}
 
 	playerAnim.walking = [];
-    for(var i=0; i<8; i++) {
-        playerAnim.walking.push({x:i*64, y:64});
-    }
-    playerAnim.jumping = [];
-    for(var i=0; i<8; i++) {
-        playerAnim.jumping.push({x:i*64, y:64});
-    }
+	for(var i=0; i<8; i++) {
+		playerAnim.walking.push({x:i*64, y:64});
+	}
+	playerAnim.jumping = [];
+	for(var i=0; i<8; i++) {
+		playerAnim.jumping.push({x:i*64, y:64});
+	}
 
-
-	playerAnim.index = 0;
-    playerAnim.name = "idle";
-
-    document.addEventListener('keydown',function(e) { 
-        pressed[e.keyCode] = true;   
-    });
-    document.addEventListener('keyup',  function(e) {  
-        pressed[e.keyCode] = false;  
-    });
+	// Generate workers
+	for(var i=0; i<NUMBER_OF_WORKERS; i++) {
+		workers[i] = {}
+		workers[i].location = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+		workers[i].anim_index = i;
+		workers[i].anim_name = "typing"
+	}
+	
+	// Set up keypress listing
+	document.addEventListener('keydown',function(e) { 
+		pressed[e.keyCode] = true;   
+	});
+	document.addEventListener('keyup',  function(e) {  
+		pressed[e.keyCode] = false;  
+	});
+	
 }
 
 
@@ -126,12 +132,12 @@ function setup() {
 
 
 function gameLoop() {
-    processInput();
-    updateGameState();
-    checkConditions();
+	processInput();
+	updateGameState();
+	checkConditions();
 	processAnimations();
-    draw();
-    window.requestAnimFrame(gameLoop);
+	draw(ctx);
+	window.requestAnimFrame(gameLoop);
 }
 
 
@@ -145,65 +151,52 @@ function updateGameState() {
 
 	playerAnim.name = "idle";
 	playerAnim.dir = 1
-	
-    if(pressed['A'.charCodeAt(0)] == true) {
-        player.x -= 4;
-        playerAnim.name = "walking";
-        playerAnim.dir = -1;
-    }
-    if(pressed['S'.charCodeAt(0)] == true) {
-        player.x += 4;
-        playerAnim.name = "walking";
-    }
- 
-     if(pressed['P'.charCodeAt(0)] == true) {
-        // If the panic mode button was just pressed, toggle panic mode
-        if (!panic_button_pressed) {
-        	panic_mode = !panic_mode;        	
-        	
-        }
-        panic_button_pressed = true;
-    } else {
-    	panic_button_pressed = false;
-    }
- 
+
+	if(pressed['A'.charCodeAt(0)] == true) {
+		player.x -= 4;
+		playerAnim.name = "walking";
+		playerAnim.dir = -1;
+	}
+	if(pressed['S'.charCodeAt(0)] == true) {
+		player.x += 4;
+		playerAnim.name = "walking";
+	}
+	if(pressed['T'.charCodeAt(0)] == true) {
+		playerAnim.name = "typing";
+	}
+
+	if(pressed['P'.charCodeAt(0)] == true) {
+		// If the panic mode button was just pressed, toggle panic mode
+		if (!panic_button_pressed) {
+			panic_mode = !panic_mode;        		
+		}	
+		panic_button_pressed = true;
+	} else {
+		panic_button_pressed = false;
+	}
+
 	// Move the camera to scroll the screen 
-    camera = player.x - Math.floor(SCREEN_WIDTH/2); // update the camera   
-    
+	// Don't scroll past the starting point
+	camera = Math.max(0, player.x - Math.floor(SCREEN_WIDTH/2));   
+
 }
+
+
+
 
 function checkConditions() {
 
+	if(player.intersects(player_desk)) {
+		show_terminal= true;    
+		playerAnim.name = "typing"
+	} else {
+		show_terminal= false; 
+	}
 
-	/*
-    if(player.intersects(player_desk)) {
-        console.log("player hit the player_desk.");
-        
-        var effect = new ParticleEffect();
-        effect.x = player.x;
-        effect.y = 400-player.h/2;
-        effect.max = 100;
-        effect.initParticle = function(part) {
-            part.dy = rand(-5,5);
-            part.dx = rand(-3,0);
-            part.color = randColor();
-            return part;
-        };
-        effects.push(effect);
-        player.x = 0;
-    }
-    */
-    
-    
-    // Clean up old effects
-	for (var i=0; i < effects.length; i++)
-	{
-        if (!effects[i].alive) {
-        	effects.splice(i, 1);	
-        }
-    }
-
-    
+	// Clean up dead effects
+	for (var i=0; i < effects.length; i++) {
+		if (!effects[i].alive) {effects.splice(i, 1);}
+	}
 }
 
 
@@ -212,58 +205,80 @@ function checkConditions() {
 function processAnimations() {
 
 	// Every 6th tick, switch to next sprite for current animation
-    tick++;
-    if(tick % 6 == 0) {
-        playerAnim.index++;
-    }
-    if(playerAnim.index >= playerAnim[playerAnim.name].length) {
-        playerAnim.index = 0;
-    }
+	tick++;
+	if(tick % 6 == 0 && playerAnim.name != "idle") {
+		playerAnim.index++;
+	} else if (tick % 10 == 0 && playerAnim.name == "idle") {
+		// Assume non-blinking state - but blink every so often on a random interval
+		playerAnim.index = 0;
+		if (rand(0,15) > 14) {
+			playerAnim.index=1;
+		}
+	}
+
+	// If reached the end of the animation length, start from zero
+	if(playerAnim.index >= playerAnim[playerAnim.name].length) {
+		playerAnim.index = 0;
+	}
 
 	// Animate workers
 	for(var i in workers) {
-	
 		// Make them on different phases of animation
 		if(tick % 6 == 0) {
-        	workers[i].anim_index++;
-    	}
-	
+			workers[i].anim_index++;
+		}
+
+		// If reached the end of the animation length, start from zero
 		if(workers[i].anim_index >= playerAnim[workers[i].anim_name].length) {
 			workers[i].anim_index = 0;
 		} 
 	}
-   
-    // Scroll terminal window if not in panic mode
-    // by adding a new line
-    if (!panic_mode && (tick % 50 == 0)) {
-    	var domain_index = Math.floor(rand(0, domain_names.length-1));
-    	var domain = domain_names[domain_index];
-    	
-    	var ip = Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255));
 
-		terminal_listing.unshift(ip + " - [26/Apr/2000:00:23:48] \"GET\" " + domain + "HTTP/1.0\"");
+
+	// Add more information to terminal window as needed (when in correct mode)
+	if (show_terminal && !panic_mode && (tick % 50 == 0)) {
+	
+		// Get a new random domain name
+		var domain_index = Math.floor(rand(0, domain_names.length-1));
+		var domain = domain_names[domain_index];
+	
+		var ip = Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255));
+		var d=new Date();
+		var datestamp = ('0' + d.getMonth()).slice(-2) + "/" + ('0' + d.getDate()).slice(-2) + "/" + d.getFullYear() + " " + ('0' + d.getHours()).slice(-2) + ":" + ('0' + d.getMinutes()).slice(-2) + ":" + ('0' + d.getSeconds()).slice(-2);
+		
+		terminal_listing.unshift(ip + "[" + datestamp + "] \"GET\" " + domain + " HTTP/1.0\"");
 		//console.log( domain_index, domain, terminal_listing[0])
 		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
 			terminal_listing.pop()
 		}	
+	
+		// Randomly select an IP to highlight
+		var color = "green"
+		if (rand(0,5) > 4) {
+			color = "red"
+		}
+	
+	
+		$("#overlay").append("<span style='color:" + color + "'>" + terminal_listing[0] + "</scan><BR>");
+		$("#overlay").scrollTop($("#overlay")[0].scrollHeight);
 
-    }
-    // Draw the computer screen into a secondary canvas
-    draw_computer_screen(comp_screen_Ctx) 
-    
-    
-    if (panic_mode && tick % 10 ) {
-    
+	}
+	// Draw the computer screen into a secondary canvas
+	//draw_computer_screen(comp_screen_Ctx) 
+
+
+	if (panic_mode && tick % 10 ) {
+
 		// Generate particle "steam"
 		var effect = new ParticleEffect();
 		effect.x = player.x + player.w/2;		// Default
 		effect.y = Math.round(ground-player.h*0.75);
 		effect.max = 4;
-		
-		/*effect.initParticle = function(part) {
-			
-			part.dy = rand(-5,0);
 	
+		/*effect.initParticle = function(part) {
+		
+			part.dy = rand(-5,0);
+
 			// Generate steam based on which direction player is moving
 			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
 				part.dx = rand(-3,0);		// Walking right
@@ -274,7 +289,7 @@ function processAnimations() {
 			} else {
 				part.dx = rand(-3,3);			// Not walking
 			}
-			
+		
 			part.color = "#EEEEEE";
 			return part;
 		};
@@ -286,13 +301,169 @@ function processAnimations() {
 
 
 
-function draw() {
+
+
+
+function refresh() {
+}
+
+
+
+
+function Box(x,y,w,h) {
+	this.x = x;
+	this.y = y;
+	this.w = w;
+	this.h = h;
+	this.fillRect = function(ctx) {
+		ctx.fillRect(this.x,this.y,this.w,this.h);
+	}
+	this.getRight = function() { return this.x + this.w; }
+	this.getLeft = function() { return this.x; }
+	this.getTop = function() { return this.y; }
+	this.getBottom = function() { return this.y + this.h; }
+
+	this.setRight  = function(right) { this.x = right - this.w; }
+	this.setLeft   = function(left)  { this.x = left; }
+	this.setBottom = function(bottom) { this.y = bottom - this.h; }
+	this.setTop    = function(top) { this.y = top; }
+
+	this.intersects = function(box) {
+		if(this.getRight() >= box.getLeft() 
+		&& this.getLeft() <= box.getRight()) {
+			if(this.getBottom() >= box.getTop() 
+			&& this.getTop() <= box.getBottom()) {
+					return true;
+			}
+		}	
+		return false;    	
+	}
+}
+
+function rand(lo,hi) {
+	return lo + Math.random()*(hi-lo);
+}
+
+function randColor() {
+	return '#'+Math.floor(Math.random()*16777215).toString(16);
+}
+
+function ParticleEffect() {
+	this.x = 0;
+	this.y = 0;
+	this.age = 0;
+	this.parts = [];
+	this.rate = 10;
+	this.max = 1;
+	this.maxage = 200;
+	this.color = "#aaaaaa";
+	this.alive = true;
+	this.initParticle = function(part) {
+		return part;
+	}
+	this.tick = function() {
+		this.age++;
+		if(this.age > this.maxage) {
+			this.alive = false;
+			return;
+		}
+		if((this.age % this.rate) == 0 && this.parts.length < this.max) {
+		
+			// Default part
+			var part = {
+				x:this.x,
+				y:this.y,
+				dx: rand(-3,3),
+				dy: rand(-5,0),
+				alpha:0.5,
+				dalpha:-0.01,
+				color: "#EEEEEE"
+				};
+
+			var part2 = {
+				x:this.x,
+				y:this.y,
+				dx: rand(-3,3),
+				dy: rand(-5,0),
+				alpha:0.5,
+				dalpha:-0.01,
+				color: "#EEEEEE"
+				};
+		
+			// Generate steam based on which direction player is moving
+			// Adjust defaults as needed
+			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
+				part.dx = rand(-2,0);		// Walking right
+				//x = player.x;		// Shift particles to the left
+				this.parts.push(this.initParticle(part));
+			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
+				part.dx = rand(0,2);		// Walking left
+				part.x = part.x - 20;
+				//x = Math.round(player.x + player.w);	// Shift particles to the right
+				this.parts.push(this.initParticle(part));
+			} else if (playerAnim.name == "idle" || playerAnim.name == "typing") {
+				part.dx = rand(-3,0);		// Walking left
+				part.x = part.x - 45;
+				//x = Math.round(player.x + player.w);	// Shift particles to the right
+				this.parts.push(this.initParticle(part));
+				
+				// Create another for the right ear
+				part2.dx = rand(0,3);		// Walking left
+				part2.x = part.x + 60;
+				//x = Math.round(player.x + player.w);	// Shift particles to the right
+				this.parts.push(this.initParticle(part2));
+		 	}
+			
+		}
+		for(var i=0; i<this.parts.length; i++) {
+			var p = this.parts[i];
+			p.y += p.dy;
+			p.x += p.dx;
+			p.alpha += p.dalpha;
+		}
+	}
+	this.draw = function(g) {
+		if(!this.alive) return;
+		g.save();
+		for(var i=0; i<this.parts.length; i++) {
+			var p = this.parts[i];
+			if(p.alpha < 0) continue;
+			g.fillStyle = p.color;
+			g.globalAlpha = p.alpha;
+			g.fillRect(p.x,p.y,20,20);
+			//g.arc(p.x,p.y,20, 0, 2 * Math.PI);
+			//g.fill();
+		}
+		g.restore();
+	}
+}
+
+setup();
+
+
+
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+		  window.webkitRequestAnimationFrame ||
+		  window.mozRequestAnimationFrame    ||
+		  function( callback ){
+			window.setTimeout(callback, 1000 / 60);
+		  };
+})();
+
+window.requestAnimFrame(gameLoop);
+    
+    
+    
+    
+    
+function draw(ctx) {
     drawBackground(ctx);
     //drawSkyline(ctx);
     drawGround(ctx);
     ctx.save();
     ctx.translate(-camera,0);
-
+	draw_computer_screen(ctx);
     drawplayer_desk(ctx);
     copy_computer_screen(ctx);
     draw_workers(ctx);
@@ -312,7 +483,7 @@ function copy_computer_screen(ctx) {
 
 
 function drawBackground(ctx) {
-    ctx.fillStyle = "#FFFFE0";
+    ctx.fillStyle = "#DDDDB0";
     ctx.fillRect(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
 }
 
@@ -365,22 +536,20 @@ function drawSkyline(ctx) {
 
 function drawPlayer(ctx) {
    
-   	ctx.fillStyle = "#FF0000";
-    player.fillRect(ctx);
+   	//ctx.fillStyle = "#FF0000";
+    //player.fillRect(ctx);
     
     
     ctx.save();
     
-    ctx.moveTo(player.x, 0);
-    ctx.lineTo(player.x, SCREEN_HEIGHT);
-    ctx.stroke();
+    //ctx.moveTo(player.x, 0);
+    //ctx.lineTo(player.x, SCREEN_HEIGHT);
+    //ctx.stroke();
     
 	ctx.translate(player.x - player.w/2,player.y+player.h/2);
 	//ctx.fillRect(-64, -152, 256, 256);
     var slice = playerAnim[playerAnim.name][playerAnim.index];
-    ctx.imageSmoothingEnabled = false;
-    ctx.mozImageSmoothingEnabled = false;
-    ctx.webkitImageSmoothingEnabled = false;
+
     ctx.scale(playerAnim.dir, 1);
     if (playerAnim.dir < 0) {
     	var x_offset = -192
@@ -400,7 +569,7 @@ function drawPlayer(ctx) {
 function drawplayer_desk(ctx) {
 
     ctx.fillStyle = "#FF0000";
-    player_desk.fillRect(ctx);
+    //player_desk.fillRect(ctx);
     
     ctx.save();
 	ctx.translate(player_desk.x,player_desk.y);
@@ -419,59 +588,45 @@ function draw_computer_screen(ctx) {
     ctx.mozImageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
     
-	if (!panic_mode)
+	if (!panic_mode && show_terminal)
 	{
-		/*
-		ctx.save();
-		ctx.fillStyle = "#000000";
-		computer_screen.fillRect(ctx);
-	
-		ctx.rect(computer_screen.x,computer_screen.y,computer_screen.w,computer_screen.h);
-		
-		ctx.clip();
-		ctx.fillStyle = "#00FF00";
-		ctx.textAlign = 'left';
-		ctx.font="10px 'Droid Sans Mono'";
-		
-		var count = 0;
-		for(var index in terminal_listing) { 
-			//ctx.fillText(terminal_listing[index],Math.floor(computer_screen.getLeft()*1.1),Math.round(computer_screen.getBottom()/2)-20-12*count);
-			count++;
-		}
-		ctx.restore();
-		*/
-		
-		
- 	} else {
+
+		$("#overlay").show();
+
+ 	} else if (panic_mode) {
  	
+		$("#overlay").hide();
+		
  	    ctx.fillStyle = "#FF0000";
 		computer_screen.fillRect(ctx);
 		ctx.textBaseline = 'middle';
 		ctx.fillStyle = "#FFFFFF";
 		ctx.textAlign = 'center';
 		ctx.font="80px Arial";
-			ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/4,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/4+20);
+					ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/4,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/4+20);
 		
  	
+ 	} else {
+ 		// Not in panic or terminal mode
+ 		$("#overlay").hide();
  	}
     
     
 }
 
 
-//new function to draw the skyline
+// Loop through all the workers -- drawing them and their desks
 function draw_workers(ctx) {
-    ctx.fillStyle = "#0000FF";
+    
+
     for(var i in workers) {
-        workers[i].location.fillRect(ctx);
         
         // Draw Desk
+        //ctx.fillStyle = "#0000FF";
+        //workers[i].location.fillRect(ctx);
         ctx.save();
 		ctx.translate(workers[i].location.x,workers[i].location.y);
-		ctx.drawImage(sprite,
-			0,64*3,64,64, //src
-			-48,-128,128*2,128*2 //dst
-			);
+		ctx.drawImage(sprite, 0,64*3, 64,64, -80,-128, 128*2,128*2);
 		ctx.restore();
          
          // Draw worker 
@@ -481,16 +636,10 @@ function draw_workers(ctx) {
 		ctx.imageSmoothingEnabled = false;
 		ctx.mozImageSmoothingEnabled = false;
 		ctx.webkitImageSmoothingEnabled = false;
-		ctx.drawImage(sprite,
-			slice.x,slice.y,64,64, //src
-			-64,-152,128*2,128*2 //dst
-			);
+		ctx.drawImage(sprite, slice.x,slice.y, 64,64, -64,-152, 128*2,128*2);
 		ctx.restore();  
-    }
+    } // End of loop through workers
 }  
-
-
-
 
 
 
@@ -501,137 +650,9 @@ function drawEffects(ctx) {
         ef.draw(ctx);
     });
 }
-
-
-
-function refresh() {
-}
-
-
-
-
-function Box(x,y,w,h) {
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
-    this.fillRect = function(ctx) {
-        ctx.fillRect(this.x,this.y,this.w,this.h);
-    }
-    this.getRight = function() { return this.x + this.w; }
-    this.getLeft = function() { return this.x; }
-    this.getTop = function() { return this.y; }
-    this.getBottom = function() { return this.y + this.h; }
     
-    this.setRight  = function(right) { this.x = right - this.w; }
-    this.setLeft   = function(left)  { this.x = left; }
-    this.setBottom = function(bottom) { this.y = bottom - this.h; }
-    this.setTop    = function(top) { this.y = top; }
     
-    this.intersects = function(box) {
-        if(this.getRight() >= box.getLeft() 
-        && this.getLeft() <= box.getRight()) {
-            if(this.getBottom() >= box.getTop() 
-            && this.getTop() <= box.getBottom()) {
-                    return true;
-            }
-  		}	
-  		return false;    	
-    }
-}
-
-function rand(lo,hi) {
-    return lo + Math.random()*(hi-lo);
-}
-
-function randColor() {
-    return '#'+Math.floor(Math.random()*16777215).toString(16);
-}
-
-function ParticleEffect() {
-    this.x = 0;
-    this.y = 0;
-    this.age = 0;
-    this.parts = [];
-    this.rate = 10;
-    this.max = 1;
-    this.maxage = 200;
-    this.color = "#aaaaaa";
-    this.alive = true;
-    this.initParticle = function(part) {
-        return part;
-    }
-    this.tick = function() {
-        this.age++;
-        if(this.age > this.maxage) {
-            this.alive = false;
-            return;
-        }
-        if((this.age % this.rate) == 0 && this.parts.length < this.max) {
-        	
-        	// Default part
-            var part = {
-                x:this.x,
-                y:this.y,
-                dx: rand(-3,3),
-                dy: rand(-5,0),
-                alpha:0.5,
-                dalpha:-0.01,
-                color: "#EEEEEE"
-                };
-            
-            // Generate steam based on which direction player is moving
-            // Adjust defaults as needed
-			if (playerAnim.name == "walking" && playerAnim.dir > 0) {
-				part.dx = rand(-2,0);		// Walking right
-				//x = player.x;		// Shift particles to the left
-			} else if (playerAnim.name == "walking" && playerAnim.dir < 0) {
-				part.dx = rand(0,2);		// Walking left
-				part.x = part.x - 20;
-				//x = Math.round(player.x + player.w);	// Shift particles to the right
-			}
-			 
-            this.parts.push(this.initParticle(part));
-        }
-        for(var i=0; i<this.parts.length; i++) {
-            var p = this.parts[i];
-            p.y += p.dy;
-            p.x += p.dx;
-            p.alpha += p.dalpha;
-        }
-    }
-    this.draw = function(g) {
-        if(!this.alive) return;
-        g.save();
-        for(var i=0; i<this.parts.length; i++) {
-            var p = this.parts[i];
-            if(p.alpha < 0) continue;
-            g.fillStyle = p.color;
-            g.globalAlpha = p.alpha;
-            g.fillRect(p.x,p.y,20,20);
-            //g.arc(p.x,p.y,20, 0, 2 * Math.PI);
-            //g.fill();
-        }
-        g.restore();
-    }
-}
-
-setup();
-
-
-
-window.requestAnimFrame = (function(){
-  return  window.requestAnimationFrame       ||
-          window.webkitRequestAnimationFrame ||
-          window.mozRequestAnimationFrame    ||
-          function( callback ){
-            window.setTimeout(callback, 1000 / 60);
-          };
-})();
-
-window.requestAnimFrame(gameLoop);
 
 </script>
-
 </body>
 </html>
