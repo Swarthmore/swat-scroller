@@ -1,8 +1,10 @@
 <html>
 <head>
-<link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
-<!--<script data-main="./main.js" src="require.js"></script>-->
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<!--<link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
+<script data-main="./main.js" src="require.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>-->
+<script src="jquery.js"></script>
+
 <style>
 #canvas-wrap { position:relative } /* Make this a positioned parent */
 
@@ -113,11 +115,13 @@ var NUMBER_OF_WORKERS = 6;
 var WORKER_SPACING = 300;  // in pixels
 
 var HITS_TO_WIN = 5;
-
+var WORKER_PASSWORD_LENGTH = 8;
 
 var pressed = {};
 var sprite = new Image();
 sprite.src = "nick-sprite.png";
+var panic_image = new Image();
+panic_image.src = "skull.png";
 var dir = 1;			// Player direction
 var playerAnim = {};	// Player animation setting
 var show_terminal=false; //Show terminal window
@@ -197,12 +201,15 @@ function setup() {
 	// Generate workers
 	for(var i=0; i<NUMBER_OF_WORKERS; i++) {
 		workers[i] = {}
-		workers[i].location = new Box(1.5*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+		workers[i].location = new Box(0.8*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
 		workers[i].anim_index = i;
 		workers[i].anim_name = "typing"
 		workers[i].sprite_y = 64*Math.floor(rand(4,7));		// Workers are in rows 5-7
-		workers[i].computer_sprite_x = 64*Math.round(rand(0,1))
-		workers[i].desk_sprite_x = 64*Math.round(rand(2,3))
+		workers[i].computer_sprite_x = 64*Math.round(rand(0,1));
+		workers[i].desk_sprite_x = 64*Math.round(rand(2,3));
+		workers[i].guilty = false;
+		workers[i].start_guilt_tick = 0;
+		workers[i].guilty_worker_text = [];
 	}
 	
 	// Set up keypress listing
@@ -333,8 +340,33 @@ function checkConditions() {
 	}
 
 	// Decide if there is an emergency
-	if (tick % 100 == 0 && rand(0,10)>9) {
+	// Must be in the terminal.  Check every so often with a random chance of panic mode
+	if (show_terminal &&  !panic_mode && (tick % 100 == 0) && rand(0,10)>1) {
+	
+		// Go into panic mode.  Hide and lock the terminal so the player can use the control keys
 		panic_mode = true;
+		lock_computer = true;
+		$("#player_input").blur();
+	
+		// Clear any old guilt info from workers
+		for (var w in workers) {
+			workers[w].guilty = false;
+		}
+	
+		// Pick which worker has the emergency 
+		guilty_worker = Math.floor(rand(0, NUMBER_OF_WORKERS));
+		workers[guilty_worker].guilty = true;
+		workers[guilty_worker].start_guilt_tick = tick;
+		workers[guilty_worker].guilty_worker_text = ["Welcome to Facebook!", "Username: *******", "Password: "];	
+	}
+
+	// Check if worker has typed in incorrect password
+	if (panic_mode) {
+	 	if ( ((tick - workers[guilty_worker].start_guilt_tick) / 100) >= WORKER_PASSWORD_LENGTH) {
+	 		hits = hits - 1;
+	 		alert("You lost a life"); 	
+	 		panic_mode = false;
+	 	}
 	}
 
 
@@ -626,19 +658,12 @@ function draw(ctx) {
     ctx.translate(-camera,0);
 	draw_computer_screen(ctx);
     drawplayer_desk(ctx);
-    copy_computer_screen(ctx);
     draw_workers(ctx);
     drawPlayer(ctx);    
     drawEffects(ctx);
     ctx.restore();
     draw_worker_bubble(camera);
 }
-
-
-function copy_computer_screen(ctx) {
-    ctx.drawImage(comp_screen_canvas, 0,0, COMPUTER_SCREEN_WIDTH/2, COMPUTER_SCREEN_HEIGHT/2,0,0, COMPUTER_SCREEN_WIDTH, COMPUTER_SCREEN_HEIGHT);
-}
-
 
 
 function draw_worker_bubble(camera)
@@ -703,48 +728,42 @@ function drawplayer_desk(ctx) {
 }
 
 function draw_computer_screen(ctx) {
-
-    
-	if (!panic_mode && show_terminal)
-	{
+   
+	if (!panic_mode && show_terminal) {
 
 		$("#overlay").show();
+		$("#panic_window").hide();
 
  	} else if (panic_mode) {
  	
 		$("#overlay").hide();
+		//$("#panic_window").show();
 		
- 	    ctx.fillStyle = "#FF0000";
-		computer_screen.fillRect(ctx);
-		ctx.textBaseline = 'middle';
-		ctx.fillStyle = "#FFFFFF";
-		ctx.textAlign = 'center';
-		ctx.font="80px Arial";
-					ctx.fillText("PANIC!",Math.floor(computer_screen.getLeft()+computer_screen.getRight())/4,Math.floor(computer_screen.getBottom()-computer_screen.getTop())/4+20);
+		// Panic window doesn't scroll, so calculate position based on camera position.
+		//var panic_position = 50 - camera;
+		//$("#panic_window").css("left", panic_position);
 		
- 	
+		ctx.drawImage(panic_image, 0 ,0 , 105,131, 50 , 50, 105*2,131*2);
+			
  	} else {
  		// Not in panic or terminal mode
  		$("#overlay").hide();
- 	}
-    
-    
+ 		$("#panic_window").hide();
+ 	}    
 }
 
 
 // Loop through all the workers -- drawing them and their desks
 function draw_workers(ctx) {
     
-
-    for(var i in workers) {
-        
+    for(var i in workers) {    
         // Draw Desk
         //ctx.fillStyle = "#0000FF";
         //workers[i].location.fillRect(ctx);
         ctx.save();
 		ctx.translate(workers[i].location.x,workers[i].location.y);
 		ctx.drawImage(sprite, workers[i].desk_sprite_x,64*3, 64,64, -100,-91, 128*2,128*2);
-		ctx.drawImage(sprite, workers[i].computer_sprite_x,64*3, 64,64, -80,-128, 128*2,128*2);	
+		ctx.drawImage(sprite, workers[i].computer_sprite_x,64*3, 64,64, -80,-128, 128*2,128*2);		
 		ctx.restore();
          
          // Draw worker 
@@ -756,6 +775,33 @@ function draw_workers(ctx) {
 		ctx.webkitImageSmoothingEnabled = false;
 		ctx.drawImage(sprite, slice.x,workers[i].sprite_y, 64,64, -64,-152, 128*2,128*2);
 		ctx.restore();  
+		
+		// If guilty, draw computer screen	
+		if (panic_mode && workers[i].guilty) {
+			ctx.fillStyle = "#000000";
+    		ctx.fillRect(workers[i].location.x - 150,150,400,300);
+    		
+    		// Enter text
+    		ctx.fillStyle = "green";
+    		ctx.textAlign = 'left';
+    		ctx.font = "normal 16pt 'Courier' ";
+    		
+    		// Every few ticks, add another asterisk to the password line.  When whole password has been entered, 
+    		// player looses a life
+    		if ( ((tick - workers[guilty_worker].start_guilt_tick) % 100) == 0) {
+    			var new_text = workers[i].guilty_worker_text[2] + "*";
+    			workers[i].guilty_worker_text[2] = new_text;
+    			console.log(tick, workers[guilty_worker].start_guilt_tick, tick/workers[guilty_worker].start_guilt_tick);
+    			
+    		}
+    		
+    		for (var line in workers[i].guilty_worker_text) {
+    			ctx.fillText(workers[i].guilty_worker_text[line],workers[i].location.x - 140,180 + 40*line);
+    		}
+		
+		}
+		
+		
     } // End of loop through workers
 }  
 
