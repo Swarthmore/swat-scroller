@@ -6,91 +6,36 @@
 <script src="jquery.js"></script>
 
 <style>
-#canvas-wrap { position:relative } /* Make this a positioned parent */
+	#canvas-wrap { position:relative } /* Make this a positioned parent */
 
-#terminal_window     { position:absolute; top:50px; left:50px; font-family:Courier; font-size:13pt; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:300px; }
+	#terminal_window     { position:absolute; top:50px; left:50px; font-family:Courier; font-size:13pt; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:300px; }
 
-#data_entry_window  { position:absolute; top:350px; left:50px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:25px; }
+	#data_entry_window  { position:absolute; top:350px; left:50px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:750px; height:25px; }
 
-#player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
+	#player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
 
-#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:20px; }
-
-
-#worker_bubble     { position: absolute;
-top:50px; left:400px;
-width: 400px;
-height: 350px;
-margin: 2em auto 10px;
-color: #000;
-background: #ffed26;
--webkit-border-top-left-radius: 400px 350px;
--webkit-border-top-right-radius: 400px 350px;
--webkit-border-bottom-right-radius: 400px 350px;
--webkit-border-bottom-left-radius: 400px 350px;
--moz-border-radius: 400px / 350px;
-border-radius: 400px / 350px;}
-
-#worker_bubble p:before {
-content: "";
-position: absolute;
-z-index: -1;
-bottom: -30px;
-right: 55%;
-width: 180px;
-height: 60px;
-background: #fff;
--webkit-border-bottom-right-radius: 40px 50px;
--moz-border-radius-bottomright: 40px 50px;
-border-bottom-right-radius: 40px 50px;
--webkit-transform: translate(-30px, -2px);
--moz-transform: translate(-30px, -2px);
--ms-transform: translate(-30px, -2px);
--o-transform: translate(-30px, -2px);
-transform: translate(-30px, -2px);
-}
-
-
-#worker_bubble p:after {
-content: "";
-position: absolute;
-z-index: -2;
-bottom: -30px;
-right: 25%;
-height: 80px;
-border-right: 200px solid #ffed26;
-background: #ffed26;
--webkit-border-bottom-right-radius: 200px 100px;
--moz-border-radius-bottomright: 200px 100px;
-border-bottom-right-radius: 200px 100px;
--webkit-transform: translate(0, -2px);
--moz-transform: translate(0, -2px);
--ms-transform: translate(0, -2px);
--o-transform: translate(0, -2px);
-transform: translate(0, -2px);
-display: block;
-width: 0;
-}
-
-
+	#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:20px; }
 </style>
 </head>
+
 <body>
+
 <div id="canvasWrap">
-<canvas id='canvas' width='1024' height='768'></canvas>
-<!--
-<div id='worker_bubble' ><p>Hello</p></div>
--->
-<div id='overlay' style='border:2px'>
-	<div id="terminal_window"><table><tbody></tbody></table><BR></div>
-	<div id="data_entry_window">$&nbsp;<input id='player_input' type='text'></div>
+
+	<!-- Main canvas -->
+	<canvas id='canvas' width='1024' height='768' style="width:1024px;height:768px;"></canvas>
+	
+	<!-- Overlaps for terminal and data entry window -->
+	<div id='overlay' style='border:2px'>
+		<div id="terminal_window"><table><tbody></tbody></table><BR></div>
+		<div id="data_entry_window">$&nbsp;<input id='player_input' type='text'></div>
+	</div>
+	
+	<!-- Score display -->
+	<div id="score_window">0</div>
 </div>
-<div id="score_window">0</div>
 
 
-
-
-</div>
 
 <script>
 
@@ -139,46 +84,55 @@ var computer_screen = new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_H
 var panic_mode = false;
 var panic_button_pressed = false;
 var lock_computer = false; 
-var player_desk_sprite_x;
-
+var player_desk_sprite_x = 0;
+var guilty_worker = -1;
 var hits = 0;
-
-
-
 var effects = [];
-var ctx = document.getElementById('canvas').getContext('2d');
-
-ctx.imageSmoothingEnabled = false;
-ctx.mozImageSmoothingEnabled = false;
-ctx.webkitImageSmoothingEnabled = false;
-
-
-this.comp_screen_canvas = document.createElement('canvas');
-this.comp_screen_Ctx = this.comp_screen_canvas.getContext('2d');
-this.comp_screen_canvas.width = COMPUTER_SCREEN_WIDTH/2;
-this.comp_screen_canvas.height = COMPUTER_SCREEN_HEIGHT/2;
+var ctx;	// The Canvas screen context
 
 var terminal_listing = [];
 var MAX_TERMINAL_LISTING = 30;
 var domain_names = ["facebook.com","youtube.com","yahoo.com","live.com","msn.com","wikipedia.org","blogspot.com","baidu.com","microsoft.com","qq.com","bing.com","ask.com","adobe.com","taobao.com","twitter.com","youku.com","soso.com","wordpress.com","sohu.com","hao123.com","windows.com","163.com","tudou.com","amazon.com","apple.com","ebay.com","4399.com","yahoo.co.jp","linkedin.com","go.com","tmall.com","paypal.com","sogou.com","ifeng.com","aol.com","xunlei.com","craigslist.org","orkut.com","56.com","orkut.com.br","about.com","skype.com","7k7k.com","dailymotion.com","flickr.com","pps.tv","qiyi.com","bbc.co.uk","4shared.com","mozilla.com","ku6.com","imdb.com","cnet.com","babylon.com","mywebsearch.com","alibaba.com","mail.ru","uol.com.br","badoo.com","cnn.com","myspace.com","netflix.com","weather.com","soku.com","weibo.com","renren.com","rakuten.co.jp","17kuxun.com","yandex.ru","booking.com","ehow.com","bankofamerica.com","58.com","zedo.com","2345.com","globo.com","mapquest.com","goo.ne.jp","answers.com","360.cn","chase.com","naver.com","hp.com","odnoklassniki.ru","alipay.com","huffingtonpost.com","ameblo.jp","ganji.com","alot.com","scribd.com","megaupload.com","tumblr.com","softonic.com","camzap.com","vkontakte.ru","avg.com","walmart.com","pptv.com","xinhuanet.com","mediafire.com"];
 
 
-// Generate workers
 var workers = [];
+
+
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+		  window.webkitRequestAnimationFrame ||
+		  window.mozRequestAnimationFrame    ||
+		  function( callback ){
+			window.setTimeout(callback, 1000 / 60);
+		  };
+})();
+
+
+
+setup();
+window.requestAnimFrame(gameLoop);
 
 
 
 function setup() {
 
+	// Set up screen
+	ctx= document.getElementById('canvas').getContext('2d');
+	ctx.imageSmoothingEnabled = false;
+	ctx.mozImageSmoothingEnabled = false;
+	ctx.webkitImageSmoothingEnabled = false;
+
 	// Setup player
 	playerAnim.index = 0;
 	playerAnim.name = "idle";
+	player.dx = 0;
 	player.dy = 0;
 	hits = 0;
-	player_desk_sprite_x = 64*Math.round(rand(2,3))
+	player_desk_sprite_x = 64*Math.round(rand(2,3))	// Pick a desk style at random
 
 
 	// Set up typing animation
+	// Load sprite locations for different types of animations
 	playerAnim.typing = [];
 	for(var i=0; i<4; i++) {
 		playerAnim.typing.push({x:i*64, y:0});
@@ -212,7 +166,7 @@ function setup() {
 		workers[i].guilty_worker_text = [];
 	}
 	
-	// Set up keypress listing
+	// Set up keypress listening
 	document.addEventListener('keydown',function(e) { 
 		pressed[e.keyCode] = true;   
 	});
@@ -232,9 +186,8 @@ function setup() {
 
 
 
-
+// Main game loop
 function gameLoop() {
-	processInput();
 	updateGameState();
 	checkConditions();
 	processAnimations();
@@ -245,27 +198,27 @@ function gameLoop() {
 
 
 
-function processInput() {
-}
-
-
 function updateGameState() {
 
+	// Assume player is idle and set default direction to right.
+	// If not, these settings will be adjusted later
 	playerAnim.name = "idle";
 	playerAnim.dir = 1
 
-	// Only check player keys when computer is locked
-	if ((show_terminal && lock_computer) || !show_terminal) {
-		if(pressed[37] == true) {
+	// Only check player keys when not actively using the terminal.
+	// This is when the terminal isn't visible or the terminal is visible but locked.
+	if (!show_terminal || (show_terminal && lock_computer)) {
+	
+		if (pressed[37] == true) {	// 37 = left arrow
 			player.x -= 4;
 			playerAnim.name = "walking";
 			playerAnim.dir = -1;
 		}
-		if(pressed[39] == true) {
+		if (pressed[39] == true) {	// 39 = right arrow
 			player.x += 4;
 			playerAnim.name = "walking";
 		}
-		if(pressed['T'.charCodeAt(0)] == true) {
+		if (pressed['T'.charCodeAt(0)] == true) {
 			playerAnim.name = "typing";
 		}	
 
@@ -283,8 +236,13 @@ function updateGameState() {
 		if(pressed['P'.charCodeAt(0)] == true) {
 			// If the panic mode button was just pressed, toggle panic mode
 			if (!panic_button_pressed) {
-				panic_mode = !panic_mode;        		
-			}	
+				panic_mode = !panic_mode;   
+				if (panic_mode) {
+					start_panic_mode();    	// Take care of panic mode settings 		
+				} else {
+					workers[guilty_worker].guilty = false;		// Turn off guilty worker
+				}
+			}
 			panic_button_pressed = true;
 			lock_computer = true;
 		} else {
@@ -341,33 +299,30 @@ function checkConditions() {
 
 	// Decide if there is an emergency
 	// Must be in the terminal.  Check every so often with a random chance of panic mode
-	if (show_terminal &&  !panic_mode && (tick % 100 == 0) && rand(0,10)>1) {
-	
-		// Go into panic mode.  Hide and lock the terminal so the player can use the control keys
-		panic_mode = true;
-		lock_computer = true;
-		$("#player_input").blur();
-	
-		// Clear any old guilt info from workers
-		for (var w in workers) {
-			workers[w].guilty = false;
-		}
-	
-		// Pick which worker has the emergency 
-		guilty_worker = Math.floor(rand(0, NUMBER_OF_WORKERS));
-		workers[guilty_worker].guilty = true;
-		workers[guilty_worker].start_guilt_tick = tick;
-		workers[guilty_worker].guilty_worker_text = ["Welcome to Facebook!", "Username: *******", "Password: "];	
+	if (show_terminal &&  !panic_mode && (tick % 100 == 0) && rand(0,10)>9) {
+		start_panic_mode()
 	}
+
 
 	// Check if worker has typed in incorrect password
 	if (panic_mode) {
+	
+		// If too long has passed since the guilty worker started typing the password, make the player lose a life and some points
 	 	if ( ((tick - workers[guilty_worker].start_guilt_tick) / 100) >= WORKER_PASSWORD_LENGTH) {
 	 		hits = hits - 1;
 	 		alert("You lost a life"); 	
 	 		panic_mode = false;
 	 	}
+
+		// Otherwise, see if the player reached the worker in time
+		if (player.intersects(workers[guilty_worker].location)) {
+			panic_mode = false;
+			workers[guilty_worker].guilty = false;
+			//alert("You got there in time!  Crisis averted."); 
+		}
+
 	}
+
 
 
 
@@ -460,12 +415,8 @@ function processAnimations() {
 		$("#terminal_window").scrollTop($("#terminal_window")[0].scrollHeight);
 
 	}
-	// Draw the computer screen into a secondary canvas
-	//draw_computer_screen(comp_screen_Ctx) 
-
 
 	if (panic_mode && tick % 10 ) {
-
 		// Generate particle "steam"
 		var effect = new ParticleEffect();
 		effect.x = player.x + player.w/2;		// Default
@@ -495,8 +446,25 @@ function check_terminal_input()
 
 
 
-function refresh() {
+function start_panic_mode()
+{
+	// Go into panic mode.  Hide and lock the terminal so the player can use the control keys
+	panic_mode = true;
+	lock_computer = true;
+	$("#player_input").blur();
+
+	// Clear any old guilt info from workers
+	for (var w in workers) {
+		workers[w].guilty = false;
+	}
+
+	// Pick which worker has the emergency 
+	guilty_worker = Math.floor(rand(0, NUMBER_OF_WORKERS));
+	workers[guilty_worker].guilty = true;
+	workers[guilty_worker].start_guilt_tick = tick;
+	workers[guilty_worker].guilty_worker_text = ["Welcome to Facebook!", "Username: *******", "Password: "];	
 }
+
 
 
 
@@ -631,20 +599,13 @@ function ParticleEffect() {
 	}
 }
 
-setup();
 
 
 
-window.requestAnimFrame = (function(){
-  return  window.requestAnimationFrame       ||
-		  window.webkitRequestAnimationFrame ||
-		  window.mozRequestAnimationFrame    ||
-		  function( callback ){
-			window.setTimeout(callback, 1000 / 60);
-		  };
-})();
 
-window.requestAnimFrame(gameLoop);
+
+
+
     
     
     
@@ -652,7 +613,6 @@ window.requestAnimFrame(gameLoop);
     
 function draw(ctx) {
     drawBackground(ctx);
-    //drawSkyline(ctx);
     drawGround(ctx);
     ctx.save();
     ctx.translate(-camera,0);
@@ -669,7 +629,6 @@ function draw(ctx) {
 function draw_worker_bubble(camera)
 {
 	//$("#worker").
-
 }
 
 
@@ -702,11 +661,7 @@ function drawPlayer(ctx) {
     } else {
     	 var x_offset = -64
     }
-	ctx.drawImage(sprite,
-	    slice.x,slice.y,64,64, //src
-	    x_offset,-152,128*2,128*2 //dst
-	    );
-   
+	ctx.drawImage(sprite, slice.x,slice.y,64,64, x_offset,-152,128*2,128*2);   
 	ctx.restore();    
 }
 
@@ -727,13 +682,15 @@ function drawplayer_desk(ctx) {
     
 }
 
+
+
+
+
 function draw_computer_screen(ctx) {
    
 	if (!panic_mode && show_terminal) {
-
 		$("#overlay").show();
 		$("#panic_window").hide();
-
  	} else if (panic_mode) {
  	
 		$("#overlay").hide();
@@ -797,11 +754,8 @@ function draw_workers(ctx) {
     		
     		for (var line in workers[i].guilty_worker_text) {
     			ctx.fillText(workers[i].guilty_worker_text[line],workers[i].location.x - 140,180 + 40*line);
-    		}
-		
+    		}		
 		}
-		
-		
     } // End of loop through workers
 }  
 
