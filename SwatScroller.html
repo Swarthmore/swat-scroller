@@ -14,7 +14,7 @@
 
 	#player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
 
-	#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:20px; }
+	#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:40px; }
 </style>
 </head>
 
@@ -49,6 +49,7 @@ var PLAYER_HEIGHT = 128;
 
 var DESK_WIDTH = 64;
 var DESK_HEIGHT = 128;
+var FILING_CABINET_HEIGHT = 128;
 
 var COMPUTER_SCREEN_WIDTH = 600;
 var COMPUTER_SCREEN_HEIGHT = 300;
@@ -80,6 +81,8 @@ var ground = 0.82*SCREEN_HEIGHT;
 var player = new Box(SCREEN_WIDTH/2 - PLAYER_WIDTH/2,ground-PLAYER_HEIGHT,PLAYER_WIDTH,PLAYER_HEIGHT);
 var player_desk = new Box(Math.floor(SCREEN_WIDTH*0.05),Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
 var computer_screen = new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_HEIGHT*0.05), COMPUTER_SCREEN_WIDTH,COMPUTER_SCREEN_HEIGHT);
+var filing_cabinet;
+
 
 var panic_mode = false;
 var panic_button_pressed = false;
@@ -89,6 +92,7 @@ var guilty_worker = -1;
 var hits = 0;
 var effects = [];
 var ctx;	// The Canvas screen context
+var start_time;
 
 var terminal_listing = [];
 var MAX_TERMINAL_LISTING = 30;
@@ -155,7 +159,7 @@ function setup() {
 	// Generate workers
 	for(var i=0; i<NUMBER_OF_WORKERS; i++) {
 		workers[i] = {}
-		workers[i].location = new Box(0.8*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+		workers[i].location = new Box(1*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
 		workers[i].anim_index = i;
 		workers[i].anim_name = "typing"
 		workers[i].sprite_y = 64*Math.floor(rand(4,7));		// Workers are in rows 5-7
@@ -166,6 +170,9 @@ function setup() {
 		workers[i].guilty_worker_text = [];
 	}
 	
+	// Place filing cabinet
+	filing_cabinet = new Box(0.65*SCREEN_WIDTH, ground - FILING_CABINET_HEIGHT,50,FILING_CABINET_HEIGHT);
+	
 	// Set up keypress listening
 	document.addEventListener('keydown',function(e) { 
 		pressed[e.keyCode] = true;   
@@ -175,10 +182,12 @@ function setup() {
 	});
 	
 	$("#player_input").keyup(function (e) {
-    if (e.keyCode == 13) {
-       check_terminal_input()
-    }
-});
+		if (e.keyCode == 13) {
+		   check_terminal_input()
+		}
+	});
+	
+	start_time = new Date();
 	
 }
 
@@ -210,12 +219,12 @@ function updateGameState() {
 	if (!show_terminal || (show_terminal && lock_computer)) {
 	
 		if (pressed[37] == true) {	// 37 = left arrow
-			player.x -= 4;
+			player.x -= 8;
 			playerAnim.name = "walking";
 			playerAnim.dir = -1;
 		}
 		if (pressed[39] == true) {	// 39 = right arrow
-			player.x += 4;
+			player.x += 8;
 			playerAnim.name = "walking";
 		}
 		if (pressed['T'.charCodeAt(0)] == true) {
@@ -273,18 +282,25 @@ function updateGameState() {
 
 function checkConditions() {
 
+	if(player.intersects(filing_cabinet)) {
+		if (player.x > filing_cabinet.x) {
+			player.x = player.x + 8;
+		}	else {
+			player.x = player.x - 8;
+		}
+	
+	}
+
 	if(player.intersects(player_desk)) {
 		// if the terminal isn't locked, show the terminal
 		if (!lock_computer) { 
 			$("#player_input").focus();
 		} else {
-			$("#player_input").blur();
-		
+			$("#player_input").blur();		
 			// Computer is locked - check to see if the player has unlocked the computer
 			if(pressed[13] == true) {	// 27 = enter key
 				lock_computer = false;
 			}
-
 		}
 		
 		// In any case, if the player is overlapping the desk, show the typing mode and the terminal
@@ -437,7 +453,6 @@ function check_terminal_input()
 		// Check to see if this listing is a hit -- if so, see if the IP matches the user input
 		if (terminal_listing[i].hit && test_input == terminal_listing[i].ip_address) {
 			hits++;
-			$("#score_window").text(hits*50); // Update score window
 			$("#player_input").val("");		// Clear input
 			return;
 		}
@@ -619,10 +634,30 @@ function draw(ctx) {
 	draw_computer_screen(ctx);
     drawplayer_desk(ctx);
     draw_workers(ctx);
+    draw_filing_cabinet(ctx);
     drawPlayer(ctx);    
     drawEffects(ctx);
     ctx.restore();
     draw_worker_bubble(camera);
+    draw_score_window(ctx)
+}
+
+
+function draw_score_window(ctx)
+{
+
+	var score = hits * 50;
+	var current_time = new Date()
+	var elapsed_time = Math.round((current_time.getTime() - start_time.getTime()) / 100)
+	
+	var tenths_of_seconds = Math.floor(elapsed_time % 10);
+	var seconds = Math.floor(elapsed_time / 10);
+	
+	
+	var status_html = "<table style='width:100%;border:0px;color:green'><tr><td style='text-align:left'>Score</td><td style='text-align:right'>" + score + "</td></tr><tr><td style='text-align:left'>Time</td><td style='text-align:right'>" + seconds + "." + tenths_of_seconds + "</td></tr></table>"
+	
+	$("#score_window").html(status_html); // Update score window
+
 }
 
 
@@ -673,16 +708,22 @@ function drawplayer_desk(ctx) {
     
     ctx.save();
 	ctx.translate(player_desk.x,player_desk.y);
-    ctx.drawImage(sprite, player_desk_sprite_x,64*3, 64,64, -60,-91, 128*2,128*2);
-    ctx.drawImage(sprite, 
-	    0,64*3,64,64, //src
-	    -48,-140,128*2,128*2 //dst
-	    );
+    ctx.drawImage(sprite, player_desk_sprite_x,64*3, 64,64, -60,-91, 128*2,128*2);  // Computer desk
+    ctx.drawImage(sprite,0,64*3,64,64,-48,-140,128*2,128*2);						// Computer
+    ctx.restore();   
+}
+
+function draw_filing_cabinet(ctx) {
+
+    //ctx.fillStyle = "#FF0000";
+    //filing_cabinet.fillRect(ctx);
+    
+    ctx.save();
+	ctx.translate(filing_cabinet.x,filing_cabinet.y);
+    ctx.drawImage(sprite, 63*4,64*3, 64,64, -108,-91, 128*2,128*2);
     ctx.restore();
     
 }
-
-
 
 
 
