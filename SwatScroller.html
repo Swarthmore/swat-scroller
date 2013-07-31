@@ -14,7 +14,7 @@
 
 	#player_input {color: #00FF00; background-color:black;border:none; font-family:Courier; font-size:13pt; width:90%;overflow:hidden;outline:none;}
 
-	#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:40px; }
+	#score_window  { position:absolute; top:50px; left:850px; text-align:right; font-size:18px; font-family:Courier; color: #00FF00; background: #000000; border: 3px double #CCCCCC; padding: 10px; overflow: auto; width:125px; height:40px; overflow:hidden }
 </style>
 </head>
 
@@ -291,7 +291,7 @@ function checkConditions() {
 	
 	}
 
-	if(player.intersects(player_desk)) {
+	if(player.intersects(player_desk) && !panic_mode) {
 		// if the terminal isn't locked, show the terminal
 		if (!lock_computer) { 
 			$("#player_input").focus();
@@ -566,26 +566,27 @@ function ParticleEffect() {
 		
 			// Generate steam based on which direction player is moving
 			// Adjust defaults as needed
-			if ( (playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir > 0) {
+			if ( (playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir >= 0) {
 				part.dx = rand(-2,0);		// Walking right
-				part.y = player.y + 30;
-				this.parts.push(this.initParticle(part));
-				
+				part.x = player.x + rand(-10,0);
+				part.y = player.y + rand(25,35);
+				this.parts.push(this.initParticle(part));				
 			} else if ((playerAnim.name == "walking" || playerAnim.name == "jumping") && playerAnim.dir < 0) {
-				part.dx = rand(0,2);		// Walking left
-				part.x = part.x - 20;
-				part.y = player.y + 30;
+				part.x = player.x + rand(45,55);
+				part.y = player.y + rand(25,35);
 				this.parts.push(this.initParticle(part));
 				
 			} else if (playerAnim.name == "idle" || playerAnim.name == "typing") {
 				part.dx = rand(-3,0);		// Walking left
 				part.x = part.x - 45;
+				part.y = player.y + rand(25,35);
 				//x = Math.round(player.x + player.w);	// Shift particles to the right
 				this.parts.push(this.initParticle(part));
 				
 				// Create another for the right ear
 				part2.dx = rand(0,3);		// Walking left
 				part2.x = part.x + 60;
+				part2.y = player.y + rand(25,35);
 				//x = Math.round(player.x + player.w);	// Shift particles to the right
 				this.parts.push(this.initParticle(part2));
 		 	}
