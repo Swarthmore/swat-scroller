@@ -1,0 +1,12 @@
+{
+  "name": "SwatScroller",
+  "version": "0.0.1",
+  "description": "A side scrolling experience for Swarthmore",
+  "author": "Andrew Ruether <aruethe2@swarthmore.edu>, Michael Kappeler <mkappel1@swarthmore.edu>",
+  "dependencies": {
+    "socket.io": ">1.0.0",
+    "node-static": "~0.7.4"
+  },  
+  "license": "MIT"
+}
+  
