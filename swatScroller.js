@@ -10,16 +10,15 @@ var file = new static.Server('./public');
 app.listen(8080);
 
 function handler (req, res) {
-    request.addListener('end', function () {
-        file.serve(request, response);
+    req.addListener('end', function () {
+        file.serve(req, res);
     }).resume();
 }
 
 io.on('connection', function (socket) {
-
   socket.emit('status', { message: 'Connected to the server' });
   
-  socket.on('update_status', function (data) {
+  socket.on('status_update', function (data) {
     console.log(data);
   });
 });
