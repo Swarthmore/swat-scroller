@@ -1,0 +1,58 @@
+#canvas-wrap { 
+	position:relative 
+} /* Make this a positioned parent */
+
+#terminal_window { 
+	position:absolute;
+	top:50px;
+	left:50px;
+	font-family:Courier;
+	font-size:13pt;
+	color: #00FF00;
+	background: #000000;
+	border: 3px double #CCCCCC;
+	padding: 10px;
+	overflow: auto;
+	width:750px;
+	height:300px;
+}
+
+#data_entry_window  { 
+	position:absolute;
+	top:350px;
+	left:50px;
+	font-family:Courier;
+	color: #00FF00;
+	background: #000000;
+	border: 3px double #CCCCCC;
+	padding: 10px;
+	overflow: auto;
+	width:750px;
+	height:25px;
+}
+
+#player_input {
+	color: #00FF00;
+	background-color:black;
+	border:none;
+	font-family:Courier;
+	font-size:13pt;
+	width:90%;
+	overflow:hidden;
+	outline:none;}
+
+#score_window  { 
+	position:absolute;
+	top:50px;
+	left:850px;
+	text-align:right;
+	font-size:18px;
+	font-family:Courier;
+	color: #00FF00;
+	background: #000000;
+	border: 3px double #CCCCCC;
+	padding: 10px;
+	overflow: auto;
+	width:125px;
+	height:40px;
+	overflow:hidden }
