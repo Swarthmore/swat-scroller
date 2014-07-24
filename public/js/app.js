@@ -3,27 +3,22 @@
 var app = {
 
 	pressed: {},
-	sprite: new Image(),
-	sprite.src: "nick-sprite.png",
-	panic_image: new Image(),
-	panic_image.src: "skull.png",
-	dir: 1,			// Player direction
-	playerAnim: {},	// Player animation setting
-	show_terminal=false, //Show terminal window
+
+	show_terminal: false, //Show terminal window
 	ip_listing: [],
 	tick: 0,
 	camera: 0, 				// declare the camera
 	jumping: false,
 
-	ground: 0.82*SCREEN_HEIGHT,
-
-	player: new Box(SCREEN_WIDTH/2 - PLAYER_WIDTH/2,ground-PLAYER_HEIGHT,PLAYER_WIDTH,PLAYER_HEIGHT),
+	ground: 0.82*config.SCREEN_HEIGHT |0,  // Round down to int
 	
-	otherPlayers = [],
+	player: {},
+	otherPlayers: [],
+	workers: [],
 	
-	player_desk: new Box(Math.floor(SCREEN_WIDTH*0.05),Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT),
-	computer_screen: new Box(Math.floor(SCREEN_WIDTH*0.01), Math.floor(SCREEN_HEIGHT*0.05), COMPUTER_SCREEN_WIDTH,COMPUTER_SCREEN_HEIGHT),
-	filing_cabinet,
+	player_desk: {},
+	computer_screen: new Box(Math.floor(config.SCREEN_WIDTH*0.01), Math.floor(config.SCREEN_HEIGHT*0.05), config.COMPUTER_SCREEN_WIDTH,config.COMPUTER_SCREEN_HEIGHT),
+	filing_cabinet: {},
 
 
 	panic_mode: false,
@@ -33,8 +28,8 @@ var app = {
 	guilty_worker: -1,
 	hits: 0,
 	effects: [],
-	ctx,	// The Canvas screen context
-	start_time,
+	ctx: {},	// The Canvas screen context
+	start_time: 0,
 
 	terminal_listing: [],
 
@@ -42,103 +37,35 @@ var app = {
 };
 
 
-app.config = {
-	
-	SCREEN_WIDTH: 1024,
-	SCREEN_HEIGHT: 768,
-
-	PLAYER_WIDTH: 64,
-	PLAYER_HEIGHT: 128,
-
-	DESK_WIDTH: 64,
-	DESK_HEIGHT: 128,
-	FILING_CABINET_HEIGHT: 128,
-
-	COMPUTER_SCREEN_WIDTH: 600,
-	COMPUTER_SCREEN_HEIGHT: 300,
-
-	PANIC_WIDTH: 400,
-	PANIC_HEIGHT: 130,
-
-	NUMBER_OF_WORKERS: 6,
-	WORKER_SPACING: 300,  // in pixels
-
-	HITS_TO_WIN: 5,
-	WORKER_PASSWORD_LENGTH: 8,
-	
-	MAX_TERMINAL_LISTING: 30,
-	
-}
 
 
 
-function update_secondplayer(data) {
-	secondPlayer = data;
-}
 
-
-
-var workers = [];
-
-
-window.requestAnimFrame = (function(){
-  return  window.requestAnimationFrame       ||
-		  window.webkitRequestAnimationFrame ||
-		  window.mozRequestAnimationFrame    ||
-		  function( callback ){
-			window.setTimeout(callback, 1000 / 60);
-		  };
-})();
-
-
-
-setup();
-window.requestAnimFrame(gameLoop);
+$( document ).ready(function() {
+	setup();
+	window.requestAnimFrame(gameLoop);
+});
 
 
 
 function setup() {
 
 	// Set up screen
-	ctx= document.getElementById('canvas').getContext('2d');
-	ctx.imageSmoothingEnabled = false;
-	ctx.mozImageSmoothingEnabled = false;
-	ctx.webkitImageSmoothingEnabled = false;
+	app.ctx = $('#canvas')[0].getContext('2d');
+	app.ctx.imageSmoothingEnabled = false;
+	app.ctx.mozImageSmoothingEnabled = false;
+	app.ctx.webkitImageSmoothingEnabled = false;
 
 	// Setup player
-	playerAnim.index = 0;
-	playerAnim.name = "idle";
-	player.dx = 0;
-	player.dy = 0;
-	hits = 0;
-	player_desk_sprite_x = 64*Math.round(rand(2,3))	// Pick a desk style at random
+	app.player = new Player("Nick", config.PLAYER_WIDTH, config.PLAYER_HEIGHT);
 
 
-	// Set up typing animation
-	// Load sprite locations for different types of animations
-	playerAnim.typing = [];
-	for(var i=0; i<4; i++) {
-		playerAnim.typing.push({x:i*64, y:0});
-	}
-	//Set up idle animation
-	playerAnim.idle = [];
-	for(var i=0; i<2; i++) {
-		playerAnim.idle.push({x:i*64, y:128});
-	}
-
-	playerAnim.walking = [];
-	for(var i=0; i<8; i++) {
-		playerAnim.walking.push({x:i*64, y:64});
-	}
-	playerAnim.jumping = [];
-	for(var i=0; i<8; i++) {
-		playerAnim.jumping.push({x:i*64, y:64});
-	}
+	/*	player_desk_sprite_x = 64*Math.round(rand(2,3))	// Pick a desk style at random
 
 	// Generate workers
-	for(var i=0; i<NUMBER_OF_WORKERS; i++) {
+	for(var i=0; i< config.NUMBER_OF_WORKERS; i++) {
 		workers[i] = {}
-		workers[i].location = new Box(1*SCREEN_WIDTH + i*WORKER_SPACING, Math.floor(ground-DESK_HEIGHT),DESK_WIDTH,DESK_HEIGHT);
+		workers[i].location = new Box(1*config.SCREEN_WIDTH + i*config.WORKER_SPACING, Math.floor(app.ground-config.DESK_HEIGHT),config.DESK_WIDTH,config.DESK_HEIGHT);
 		workers[i].anim_index = i;
 		workers[i].anim_name = "typing"
 		workers[i].sprite_y = 64*Math.floor(rand(4,7));		// Workers are in rows 5-7
@@ -148,16 +75,21 @@ function setup() {
 		workers[i].start_guilt_tick = 0;
 		workers[i].guilty_worker_text = [];
 	}
+		*/
 	
-	// Place filing cabinet
-	filing_cabinet = new Box(0.65*SCREEN_WIDTH, ground - FILING_CABINET_HEIGHT,50,FILING_CABINET_HEIGHT);
+	
+	// Place furniture
+	app.filing_cabinet = new Box(0.65*config.SCREEN_WIDTH, app.ground - config.FILING_CABINET_HEIGHT,50,config.FILING_CABINET_HEIGHT);
+	app.player_desk = new Box(Math.floor(config.SCREEN_WIDTH*0.05),Math.floor(app.ground-config.DESK_HEIGHT),config.DESK_WIDTH,config.DESK_HEIGHT);
+	
+	
 	
 	// Set up keypress listening
 	document.addEventListener('keydown',function(e) { 
-		pressed[e.keyCode] = true;   
+		app.pressed[e.keyCode] = true;   
 	});
 	document.addEventListener('keyup',  function(e) {  
-		pressed[e.keyCode] = false;  
+		app.pressed[e.keyCode] = false;  
 	});
 	
 	$("#player_input").keyup(function (e) {
@@ -178,8 +110,8 @@ function setup() {
 function gameLoop() {
 	updateGameState();
 	checkConditions();
-	processAnimations();
-	draw(ctx);
+	//processAnimations();
+	draw();
 	window.requestAnimFrame(gameLoop);
 }
 
@@ -188,75 +120,78 @@ function gameLoop() {
 
 function updateGameState() {
 
+	// Send new location to the server
+	send_player_status_to_server(app.player.status());
+
+
 	// Assume player is idle and set default direction to right.
 	// If not, these settings will be adjusted later
-	playerAnim.name = "idle";
-	playerAnim.dir = 1
+	app.player.anim.name = "idle";
+	app.player.anim.dir = 1
 
 	// Only check player keys when not actively using the terminal.
 	// This is when the terminal isn't visible or the terminal is visible but locked.
-	if (!show_terminal || (show_terminal && lock_computer)) {
+	if (!app.show_terminal || (app.show_terminal && app.lock_computer)) {
 	
-		if (pressed[37] == true) {	// 37 = left arrow
-			player.x -= 8;
-			playerAnim.name = "walking";
-			playerAnim.dir = -1;
+		if (app.pressed[37] == true) {	// 37 = left arrow
+			app.player.x -= 8;
+			app.player.anim.name = "walking";
+			app.player.anim.dir = -1;
 		}
-		if (pressed[39] == true) {	// 39 = right arrow
-			player.x += 8;
-			playerAnim.name = "walking";
+		if (app.pressed[39] == true) {	// 39 = right arrow
+			app.player.x += 8;
+			app.player.anim.name = "walking";
 		}
-		if (pressed['T'.charCodeAt(0)] == true) {
-			playerAnim.name = "typing";
+		if (app.pressed['T'.charCodeAt(0)] == true) {
+			app.player.anim.name = "typing";
 		}	
 
-		if(pressed[' '.charCodeAt(0)] == true) {
+		if(app.pressed[' '.charCodeAt(0)] == true) {
 			// Only permit jumps if not already pressing the jump key and not already jumping
-			if( !jumping && player.getBottom() >= ground) {
-				player.dy -= 20;
-				jumping = true;
+			if( !app.jumping && app.player.getBottom() >= app.ground) {
+				app.player.dy -= 20;
+				app.jumping = true;
 			}
 		} else {
-			jumping = false;
+			app.jumping = false;
 		}
     
     
-		if(pressed['P'.charCodeAt(0)] == true) {
+		if(app.pressed['P'.charCodeAt(0)] == true) {
 			// If the panic mode button was just pressed, toggle panic mode
-			if (!panic_button_pressed) {
-				panic_mode = !panic_mode;   
-				if (panic_mode) {
+			if (!app.panic_button_pressed) {
+				app.panic_mode = !app.panic_mode;   
+				if (app.panic_mode) {
 					start_panic_mode();    	// Take care of panic mode settings 		
 				} else {
-					workers[guilty_worker].guilty = false;		// Turn off guilty worker
+					app.workers[guilty_worker].guilty = false;		// Turn off guilty worker
 				}
 			}
-			panic_button_pressed = true;
-			lock_computer = true;
+			app.panic_button_pressed = true;
+			app.lock_computer = true;
 		} else {
-			panic_button_pressed = false;
+			app.panic_button_pressed = false;
 		}
 		
 		// End of keys to check when terminal is locked
 	} else {
 		// Escape key
-		if(pressed[27] == true) {
-			lock_computer = true;
+		if(app.pressed[27] == true) {
+			app.lock_computer = true;
 			console.log("Lock computer");
 		}
 	}
 	
 	
-    player.y += player.dy;
-    player.dy += 1;
+    app.player.y += app.player.dy;
+    app.player.dy += 1;
 
 	// Move the camera to scroll the screen 
 	// Don't scroll past the starting point
-	camera = Math.max(0, player.x - Math.floor(SCREEN_WIDTH/2));   
+	app.camera = Math.max(0, app.player.x - Math.floor(config.SCREEN_WIDTH/2));   
 
 
-	// Send new location to the server
-	send_player_status_to_server(player);
+
 
 }
 
@@ -265,18 +200,8 @@ function updateGameState() {
 
 
 
+function start_panic_mode() {
 
-
-
-
-
-
-
-
-
-
-function start_panic_mode()
-{
 	// Go into panic mode.  Hide and lock the terminal so the player can use the control keys
 	panic_mode = true;
 	lock_computer = true;
@@ -288,7 +213,7 @@ function start_panic_mode()
 	}
 
 	// Pick which worker has the emergency 
-	guilty_worker = Math.floor(rand(0, NUMBER_OF_WORKERS));
+	guilty_worker = Math.floor(rand(0, config.NUMBER_OF_WORKERS));
 	workers[guilty_worker].guilty = true;
 	workers[guilty_worker].start_guilt_tick = tick;
 	workers[guilty_worker].guilty_worker_text = ["Welcome to Facebook!", "Username: *******", "Password: "];	
@@ -298,6 +223,14 @@ function start_panic_mode()
 
 
 
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+		  window.webkitRequestAnimationFrame ||
+		  window.mozRequestAnimationFrame    ||
+		  function( callback ){
+			window.setTimeout(callback, 1000 / 60);
+		  };
+})();
 
 
 
@@ -308,21 +241,21 @@ function start_panic_mode()
     
     
     
-function draw(ctx) {
-    drawBackground(ctx);
-    drawGround(ctx);
-    ctx.save();
-    ctx.translate(-camera,0);
-	draw_computer_screen(ctx);
-    drawplayer_desk(ctx);
-    draw_workers(ctx);
-    draw_filing_cabinet(ctx);
-    drawPlayer(ctx, player); 
-    if (secondPlayer) {drawPlayer(ctx, secondPlayer);  }
-    drawEffects(ctx);
-    ctx.restore();
-    draw_worker_bubble(camera);
-    draw_score_window(ctx)
+function draw() {
+    drawBackground();
+    drawGround();
+    app.ctx.save();
+    app.ctx.translate(-app.camera,0);
+	//draw_computer_screen(ctx);
+    //drawplayer_desk(ctx);
+    //draw_workers(ctx);
+    //draw_filing_cabinet(ctx);
+    drawPlayer(app.player); 
+
+    //drawEffects(ctx);
+    app.ctx.restore();
+    //draw_worker_bubble(app.camera);
+    //draw_score_window(ctx)
 }
 
 

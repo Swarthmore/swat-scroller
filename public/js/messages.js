@@ -10,11 +10,12 @@ socket.on('status', function (data) {
 // Handle status updates from other players
 socket.on('status_update', function (data) {
 	console.log(data);
-	otherPlayers[data.player_id] = data.player_status;
+	//otherPlayers[data.player_id] = data.player_status;
 });  
   
   
-function send_player_status_to_server(player) {
-	socket.emit('status_update', { status: app.player });
+function send_player_status_to_server(s) {
+	console.log(s);	
+	socket.emit('status_update', { status: JSON.stringify(s) });
 }  
   

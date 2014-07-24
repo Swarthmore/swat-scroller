@@ -1,15 +1,15 @@
 function checkConditions() {
 
-	if(player.intersects(filing_cabinet)) {
-		if (player.x > filing_cabinet.x) {
-			player.x = player.x + 8;
+	if(app.player.intersects(app.filing_cabinet)) {
+		if (app.player.x > app.filing_cabinet.x) {
+			app.player.x = app.player.x + 8;
 		}	else {
-			player.x = player.x - 8;
+			app.player.x = app.player.x - 8;
 		}
 	
 	}
 
-	if(player.intersects(player_desk) && !panic_mode) {
+	if(app.player.intersects(app.player_desk) && !panic_mode) {
 		// if the terminal isn't locked, show the terminal
 		if (!lock_computer) { 
 			$("#player_input").focus();
@@ -17,32 +17,33 @@ function checkConditions() {
 			$("#player_input").blur();		
 			// Computer is locked - check to see if the player has unlocked the computer
 			if(pressed[13] == true) {	// 27 = enter key
-				lock_computer = false;
+				app.lock_computer = false;
 			}
 		}
 		
 		// In any case, if the player is overlapping the desk, show the typing mode and the terminal
-		playerAnim.name = "typing"
+		app.player.anim.name = "typing"
 		show_terminal= true;   
 
 	} else {
-		show_terminal= false; 
-		lock_computer = false;
+		app.show_terminal= false; 
+		app.lock_computer = false;
 		$("#player_input").blur();
 	}
 
 	// Decide if there is an emergency
 	// Must be in the terminal.  Check every so often with a random chance of panic mode
-	if (show_terminal &&  !panic_mode && (tick % 100 == 0) && rand(0,10)>9) {
+	if (app.show_terminal &&  !app.panic_mode && (app.tick % 100 == 0) && rand(0,10)>9) {
 		start_panic_mode()
 	}
 
 
+	/*
 	// Check if worker has typed in incorrect password
-	if (panic_mode) {
+	if (app.panic_mode) {
 	
 		// If too long has passed since the guilty worker started typing the password, make the player lose a life and some points
-	 	if ( ((tick - workers[guilty_worker].start_guilt_tick) / 100) >= WORKER_PASSWORD_LENGTH) {
+	 	if ( ((tick - workers[guilty_worker].start_guilt_tick) / 100) >= config.WORKER_PASSWORD_LENGTH) {
 	 		hits = hits - 1;
 	 		alert("You lost a life"); 	
 	 		panic_mode = false;
@@ -56,19 +57,20 @@ function checkConditions() {
 		}
 
 	}
+	*/
 
 
 
 
 	// Make sure player doesn't go below the ground
-    if(player.getBottom() > ground) {
-        player.dy = 0;
-        player.setBottom(ground);
+    if(app.player.getBottom() > app.ground) {
+        app.player.dy = 0;
+        app.player.setBottom(app.ground);
     }
 
 	// Clean up dead effects
-	for (var i=0; i < effects.length; i++) {
-		if (!effects[i].alive) {effects.splice(i, 1);}
+	for (var i=0; i < app.effects.length; i++) {
+		if (!app.effects[i].alive) {app.effects.splice(i, 1);}
 	}
 }
 

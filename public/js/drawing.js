@@ -2,133 +2,96 @@
 
 
 
-function Box(x,y,w,h) {
-	this.x = x;
-	this.y = y;
-	this.w = w;
-	this.h = h;
-	this.fillRect = function(ctx) {
-		ctx.fillRect(this.x,this.y,this.w,this.h);
-	}
-	this.getRight = function() { return this.x + this.w; }
-	this.getLeft = function() { return this.x; }
-	this.getTop = function() { return this.y; }
-	this.getBottom = function() { return this.y + this.h; }
-
-	this.setRight  = function(right) { this.x = right - this.w; }
-	this.setLeft   = function(left)  { this.x = left; }
-	this.setBottom = function(bottom) { this.y = bottom - this.h; }
-	this.setTop    = function(top) { this.y = top; }
-
-	this.intersects = function(box) {
-		if(this.getRight() >= box.getLeft() 
-		&& this.getLeft() <= box.getRight()) {
-			if(this.getBottom() >= box.getTop() 
-			&& this.getTop() <= box.getBottom()) {
-					return true;
-			}
-		}	
-		return false;    	
-	}
-}
-
-function rand(lo,hi) {
-	return lo + Math.random()*(hi-lo);
-}
 
 
 
-function draw_score_window(ctx) {
+function draw_score_window() {
 
-	var score = hits * 50;
+	var score = app.player.hits * 50;
 	var current_time = new Date()
-	var elapsed_time = Math.round((current_time.getTime() - start_time.getTime()) / 100)
+	var elapsed_time = Math.round((current_time.getTime() - app.start_time.getTime()) / 100)
 	
 	var tenths_of_seconds = Math.floor(elapsed_time % 10);
 	var seconds = Math.floor(elapsed_time / 10);
 	
-	
 	var status_html = "<table style='width:100%;border:0px;color:green'><tr><td style='text-align:left'>Score</td><td style='text-align:right'>" + score + "</td></tr><tr><td style='text-align:left'>Time</td><td style='text-align:right'>" + seconds + "." + tenths_of_seconds + "</td></tr></table>"
-	
-	// Just for test
-	if (secondPlayer) {status_html = secondPlayer.y}
 	
 	$("#score_window").html(status_html); // Update score window
 
 }
 
 
-function draw_worker_bubble(camera)
-{
+function draw_worker_bubble(camera) {
 	//$("#worker").
 }
 
 
-function drawBackground(ctx) {
-    ctx.fillStyle = "#DDDDB0";
-    ctx.fillRect(0,0,SCREEN_WIDTH,SCREEN_HEIGHT);
+function drawBackground() {
+    app.ctx.fillStyle = "#DDDDB0";
+    app.ctx.fillRect(0, 0, config.SCREEN_WIDTH, config.SCREEN_HEIGHT);
 }
 
 
 
-function drawGround(ctx) {
-    ctx.fillStyle = "#88ff00";
-    ctx.fillRect(0,ground,SCREEN_WIDTH,SCREEN_HEIGHT-ground);
+function drawGround() {
+    app.ctx.fillStyle = "#88ff00";
+    app.ctx.fillRect(0, app.ground, config.SCREEN_WIDTH, config.SCREEN_HEIGHT - app.ground);
 }
 
 
 
-function drawPlayer(ctx, p) {
+function drawPlayer(p) {
    
    	//ctx.fillStyle = "#FF0000";
     //player.fillRect(ctx);
     
-    ctx.save();    
-	ctx.translate(p.x - p.w/2,p.y+p.h/2);
-    var slice = playerAnim[playerAnim.name][playerAnim.index];
+    app.ctx.save();    
+	app.ctx.translate(p.x - p.width/2,p.y+p.height/2);
+    var slice = p.anim[p.anim.name][p.anim.index];
 
-    ctx.scale(playerAnim.dir, 1);
-    if (playerAnim.dir < 0) {
+    app.ctx.scale(p.anim.dir, 1);
+    if (p.anim.dir < 0) {
     	var x_offset = -192
     } else {
     	 var x_offset = -64
     }
-	ctx.drawImage(sprite, slice.x,slice.y,64,64, x_offset,-152,128*2,128*2);   
-	ctx.restore();    
+	app.ctx.drawImage(p.sprite, slice.x,slice.y,64,64, x_offset,-152,128*2,128*2);   
+	app.ctx.restore();    
 }
 
 
 
 
-function drawplayer_desk(ctx) {
+function drawplayer_desk() {
 
-    ctx.fillStyle = "#FF0000";
+    app.ctx.fillStyle = "#FF0000";
     //player_desk.fillRect(ctx);
     
-    ctx.save();
-	ctx.translate(player_desk.x,player_desk.y);
-    ctx.drawImage(sprite, player_desk_sprite_x,64*3, 64,64, -60,-91, 128*2,128*2);  // Computer desk
-    ctx.drawImage(sprite,0,64*3,64,64,-48,-140,128*2,128*2);						// Computer
-    ctx.restore();   
+    app.ctx.save();
+	app.ctx.translate(app.player_desk.x,app.player_desk.y);
+    app.ctx.drawImage(sprite, player_desk_sprite_x,64*3, 64,64, -60,-91, 128*2,128*2);  // Computer desk
+    app.ctx.drawImage(sprite,0,64*3,64,64,-48,-140,128*2,128*2);						// Computer
+    app.ctx.restore();   
 }
 
-function draw_filing_cabinet(ctx) {
+
+function draw_filing_cabinet() {
 
     //ctx.fillStyle = "#FF0000";
     //filing_cabinet.fillRect(ctx);
     
-    ctx.save();
-	ctx.translate(filing_cabinet.x,filing_cabinet.y);
-    ctx.drawImage(sprite, 63*4,64*3, 64,64, -108,-91, 128*2,128*2);
-    ctx.restore();
+    app.ctx.save();
+	app.ctx.translate(filing_cabinet.x,filing_cabinet.y);
+    app.ctx.drawImage(sprite, 63*4,64*3, 64,64, -108,-91, 128*2,128*2);
+    app.ctx.restore();
     
 }
 
 
 
-function draw_computer_screen(ctx) {
+function draw_computer_screen() {
    
-	if (!panic_mode && show_terminal) {
+	if (!app.panic_mode && app.show_terminal) {
 		$("#overlay").show();
 		$("#panic_window").hide();
  	} else if (panic_mode) {
@@ -140,7 +103,7 @@ function draw_computer_screen(ctx) {
 		//var panic_position = 50 - camera;
 		//$("#panic_window").css("left", panic_position);
 		
-		ctx.drawImage(panic_image, 0 ,0 , 105,131, 50 , 50, 105*2,131*2);
+		app.ctx.drawImage(app.panic_image, 0 ,0 , 105,131, 50 , 50, 105*2,131*2);
 			
  	} else {
  		// Not in panic or terminal mode
@@ -151,7 +114,7 @@ function draw_computer_screen(ctx) {
 
 
 // Loop through all the workers -- drawing them and their desks
-function draw_workers(ctx) {
+function draw_workers() {
     
     for(var i in workers) {    
         // Draw Desk
@@ -203,7 +166,7 @@ function draw_workers(ctx) {
 
 
 function drawEffects(ctx) {
-    effects.forEach(function(ef) {
+    app.effects.forEach(function(ef) {
         ef.tick();
         ef.draw(ctx);
     });
@@ -311,4 +274,6 @@ function ParticleEffect() {
 
 
 
-
+	this.fillRect = function(ctx) {
+		ctx.fillRect(this.x,this.y,this.w,this.h);
+	}

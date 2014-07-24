@@ -1,42 +1,42 @@
 function processAnimations() {
 
 	// Every 6th tick, switch to next sprite for current animation
-	tick++;
-	if(tick % 6 == 0 && playerAnim.name != "idle") {
+	app.tick++;
+	if(app.tick % 6 == 0 && app.player.name != "idle") {
 		playerAnim.index++;
-	} else if (tick % 10 == 0 && playerAnim.name == "idle") {
+	} else if (app.tick % 10 == 0 && app.player.anim.name == "idle") {
 		// Assume non-blinking state - but blink every so often on a random interval
-		playerAnim.index = 0;
+		app.player.anim.index = 0;
 		if (rand(0,15) > 14) {
-			playerAnim.index=1;
+			app.player.anim.index=1;
 		}
 	}
 
 	// If reached the end of the animation length, start from zero
-	if(playerAnim.index >= playerAnim[playerAnim.name].length) {
-		playerAnim.index = 0;
+	if(app.player.anim.index >= app.player.anim[app.player.anim.name].length) {
+		app.player.anim.index = 0;
 	}
 
 	// Animate workers
-	for(var i in workers) {
+	for(var i in app.workers) {
 		// Make them on different phases of animation
-		if(tick % 6 == 0) {
-			workers[i].anim_index++;
+		if(app.tick % 6 == 0) {
+			app.workers[i].anim.index++;
 		}
 
 		// If reached the end of the animation length, start from zero
-		if(workers[i].anim_index >= playerAnim[workers[i].anim_name].length) {
-			workers[i].anim_index = 0;
+		if(app.workers[i].anim_index >= app.player.anim[app.workers[i].anim.name].length) {
+			app.workers[i].anim.index = 0;
 		} 
 	}
 
 
 	// Add more information to terminal window as needed (when in correct mode)
-	if (show_terminal && !panic_mode && (tick % (50 - hits*5) == 0)) {
+	if (app.show_terminal && !app.panic_mode && (app.tick % (50 - player.hits*5) == 0)) {
 	
 		// Get a new random domain name
-		var domain_index = Math.floor(rand(0, domain_names.length-1));
-		var domain = domain_names[domain_index];
+		var domain_index = Math.floor(rand(0, app.domain_names.length-1));
+		var domain = app.domain_names[domain_index];
 	
 		var ip = Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255)) + "." + Math.floor(rand(0,255));
 		var d=new Date();
@@ -58,22 +58,22 @@ function processAnimations() {
 			hit: target_record
 		}
 		
-		terminal_listing.unshift(ip_record);
+		app.terminal_listing.unshift(ip_record);
 		//console.log( domain_index, domain, terminal_listing[0])
-		if (terminal_listing.length > MAX_TERMINAL_LISTING) {
-			terminal_listing.pop()
+		if (app.terminal_listing.length > config.MAX_TERMINAL_LISTING) {
+			app.terminal_listing.pop()
 		}	
 
-		$("#terminal_window > table > tbody:last").append(terminal_listing[0].log_entry);
+		$("#terminal_window > table > tbody:last").append(app.terminal_listing[0].log_entry);
 		$("#terminal_window").scrollTop($("#terminal_window")[0].scrollHeight);
 
 	}
 
-	if (panic_mode && tick % 10 ) {
+	if (app.panic_mode && app.tick % 10 ) {
 		// Generate particle "steam"
 		var effect = new ParticleEffect();
-		effect.x = player.x + player.w/2;		// Default
-		effect.y = Math.round(ground-player.h*0.75);
+		effect.x = app.player.x + app.player.width/2;		// Default
+		effect.y = Math.round(app.ground - app.player.height*0.75);
 		effect.max = 4;
 		effects.push(effect);
 	}

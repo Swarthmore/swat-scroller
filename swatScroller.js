@@ -22,6 +22,6 @@ io.on('connection', function (socket) {
   socket.on('status_update', function (data) {
     console.log(data);
     // Broadcast message to all other clients
-    socket.broadcast.emit('status_update',{player_id: socket.id, player_status:data);
+    socket.broadcast.emit('status_update',{player_id: socket.id, player_status:data});
   });
 });
